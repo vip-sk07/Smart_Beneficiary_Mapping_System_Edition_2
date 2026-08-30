@@ -39,16 +39,25 @@ export async function sendAutomatedCitizenAlert(payload: AutomatedNotificationPa
     let cleanPhone = phone.replace(/\D/g, "");
     if (cleanPhone.length === 10) cleanPhone = "91" + cleanPhone;
 
+    // Fetch citizen name if available
+    let citizenName = "Citizen";
+    if (userId) {
+        try {
+            const u = await prisma.user.findUnique({ where: { id: userId }, select: { name: true } });
+            if (u?.name) citizenName = u.name;
+        } catch {}
+    }
+
     // 1. Construct Official Message Payload
     let messageBody = "";
-    if (triggerReason === "TEST_GATEWAY") {
-        messageBody = `🇮🇳 [SBMS Live Gateway Test]\n━━━━━━━━━━━━━━━━━━━━\n🙏 Namaste! Your WhatsApp Gateway is active and connected to the Smart Beneficiary Mapping System.\n\n💬 Reply with *SHOW* to view your top matching welfare schemes.`;
+    if (triggerReason === "TEST_GATEWAY" || triggerReason === "INITIAL_ALERT") {
+        messageBody = `🏛️ *GOVERNMENT OF INDIA — WELFARE HELPLINE*\n*Smart Beneficiary Mapping System (SBMS)*\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n🙏 *Namaste ${citizenName}!* \n\n✅ Your citizen profile and credentials have been verified on the national welfare portal.\n\n🎉 Based on your verified details, you qualify for **Eligible Government Welfare Schemes** with direct financial grants, scholarships, and subsidies.\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n💬 *Reply with SHOW to view your top matching schemes.*`;
     } else if (triggerReason === "DOCUMENT_VERIFIED") {
-        messageBody = `🇮🇳 [SBMS Alert] Document Verified! Based on your uploaded certificate, you are eligible for "${schemeTitle}". Benefit: ${schemeBenefit || "Financial Assistance"}. Apply here: ${portalLink || "http://localhost:3001/schemes"}`;
+        messageBody = `🏛️ *GOVERNMENT OF INDIA — SBMS ALERT*\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n🙏 *Namaste ${citizenName}!*\n\n✅ *Document Verified:* Your certificate has been verified successfully.\n\n🎯 *Matching Scheme:* *${schemeTitle}*\n💰 *Financial Benefit:* ${schemeBenefit || "Direct Benefit Transfer (DBT)"}\n\n🔗 *Official Portal:* ${portalLink || "http://localhost:3001/schemes"}\n\n💬 *Reply with SHOW to discover all eligible schemes.*`;
     } else if (triggerReason === "APPLICATION_APPROVED") {
-        messageBody = `🇮🇳 [SBMS Alert] Congratulations! Your application for "${schemeTitle}" has been APPROVED by the Welfare Department.`;
+        messageBody = `🏛️ *GOVERNMENT OF INDIA — SBMS ALERT*\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n🎉 *Congratulations ${citizenName}!* \n\nYour application for *"${schemeTitle}"* has been *APPROVED* by the District Welfare Department.\n\n💳 Treasury disbursement is scheduled via Direct Benefit Transfer (DBT).`;
     } else {
-        messageBody = `🇮🇳 [SBMS Alert] New Welfare Scheme Match: You qualify for "${schemeTitle}". Direct Portal: ${portalLink || "http://localhost:3001/schemes"}`;
+        messageBody = `🏛️ *GOVERNMENT OF INDIA — SBMS ALERT*\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n🙏 *Namaste ${citizenName}!* \n\n🎯 New Welfare Match: You are eligible for *"${schemeTitle}"*.\n💰 Benefit: ${schemeBenefit || "Government Grant"}\n\n💬 *Reply with SHOW for details.*`;
     }
 
     const messageId = "MSG-AUTO-" + Math.floor(100000 + Math.random() * 900000);
