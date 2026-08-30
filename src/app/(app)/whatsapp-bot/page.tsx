@@ -44,9 +44,7 @@ export default function WhatsAppGatewayPage() {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    schemeTitle: "Post Matric Scholarship for Higher Education",
-                    schemeBenefit: "Up to ₹25,000 / year tuition fee waiver",
-                    triggerReason: "DOCUMENT_VERIFIED"
+                    triggerReason: "TEST_GATEWAY"
                 })
             });
 

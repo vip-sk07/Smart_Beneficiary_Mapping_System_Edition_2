@@ -41,7 +41,9 @@ export async function sendAutomatedCitizenAlert(payload: AutomatedNotificationPa
 
     // 1. Construct Official Message Payload
     let messageBody = "";
-    if (triggerReason === "DOCUMENT_VERIFIED") {
+    if (triggerReason === "TEST_GATEWAY") {
+        messageBody = `🇮🇳 [SBMS Live Gateway Test]\n━━━━━━━━━━━━━━━━━━━━\n🙏 Namaste! Your WhatsApp Gateway is active and connected to the Smart Beneficiary Mapping System.\n\n💬 Reply with *SHOW* to view your top matching welfare schemes.`;
+    } else if (triggerReason === "DOCUMENT_VERIFIED") {
         messageBody = `🇮🇳 [SBMS Alert] Document Verified! Based on your uploaded certificate, you are eligible for "${schemeTitle}". Benefit: ${schemeBenefit || "Financial Assistance"}. Apply here: ${portalLink || "http://localhost:3001/schemes"}`;
     } else if (triggerReason === "APPLICATION_APPROVED") {
         messageBody = `🇮🇳 [SBMS Alert] Congratulations! Your application for "${schemeTitle}" has been APPROVED by the Welfare Department.`;
