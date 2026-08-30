@@ -1,11 +1,7 @@
 /**
- * Real WhatsApp Baileys Gateway Service
+ * Real WhatsApp Baileys Gateway Service with Local IPC Bridge
  * Connects your WhatsApp account programmatically using @whiskeysockets/baileys.
- * 
- * Safety Guarantees:
- * 1. Group chats (@g.us) are 100% ignored.
- * 2. Unregistered phone numbers (friends, family, personal contacts) are 100% ignored.
- * 3. Only registered SBMS beneficiaries sending valid commands trigger automated responses.
+ * Runs on Port 3002 to accept dispatch requests from Next.js server.
  */
 
 import makeWASocket, {
@@ -14,13 +10,13 @@ import makeWASocket, {
     fetchLatestBaileysVersion,
     Browsers,
     WASocket,
-    proto
 } from "@whiskeysockets/baileys";
 import { Boom } from "@hapi/boom";
 import qrcode from "qrcode-terminal";
 import pino from "pino";
 import path from "path";
 import fs from "fs";
+import http from "http";
 import { prisma } from "@/lib/prisma";
 import { processIncomingWhatsAppMessage } from "@/lib/whatsapp-conversation";
 
@@ -29,6 +25,7 @@ let currentQR: string | null = null;
 let connectionStatus: "DISCONNECTED" | "SCAN_QR" | "CONNECTED" = "DISCONNECTED";
 
 const AUTH_DIR = path.join(process.cwd(), ".auth_whatsapp");
+const IPC_PORT = 3002;
 
 export function getGatewayStatus() {
     return {
@@ -84,8 +81,11 @@ export async function initWhatsAppGateway() {
         } else if (connection === "open") {
             connectionStatus = "CONNECTED";
             currentQR = null;
-            console.log("\n✅ [SBMS WHATSAPP GATEWAY CONNECTED SUCCESSFULLY!]");
-            console.log("🤖 Connected to your WhatsApp account. Ready to dispatch welfare alerts!\n");
+            console.log("\n=======================================================");
+            console.log("✅ [SBMS WHATSAPP GATEWAY CONNECTED SUCCESSFULLY!]");
+            console.log("🤖 Ready to dispatch welfare alerts to citizen phones!");
+            console.log(`📡 Local Dispatch Server listening on http://localhost:${IPC_PORT}/send`);
+            console.log("=======================================================\n");
         }
     });
 
@@ -94,7 +94,6 @@ export async function initWhatsAppGateway() {
         if (type !== "notify") return;
 
         for (const m of messages) {
-            // Ignore messages sent by yourself
             if (m.key.fromMe) continue;
 
             const remoteJid = m.key.remoteJid;
@@ -105,9 +104,8 @@ export async function initWhatsAppGateway() {
                 continue;
             }
 
-            // Extract pure digits from phone (e.g. 919842154321)
             const senderRaw = remoteJid.split("@")[0];
-            const cleanPhone10 = senderRaw.slice(-10); // Last 10 digits
+            const cleanPhone10 = senderRaw.slice(-10);
 
             // 🛡️ PROTECTION 2: Check if sender is a registered citizen in SBMS database
             let citizen = null;
@@ -123,13 +121,11 @@ export async function initWhatsAppGateway() {
                 console.error("DB check error:", err);
             }
 
-            // IF NOT A REGISTERED CITIZEN -> IGNORE COMPLETELY (DO NOTHING)
+            // IF NOT A REGISTERED CITIZEN -> IGNORE COMPLETELY
             if (!citizen) {
-                // Personal friend/family/colleague -> Do not reply
                 continue;
             }
 
-            // Extract message body
             const messageContent =
                 m.message?.conversation ||
                 m.message?.extendedTextMessage?.text ||
@@ -145,16 +141,13 @@ export async function initWhatsAppGateway() {
             const isSchemeQuery = upper.includes("SCHEME") || upper.includes("SCHOLARSHIP") || upper.includes("FARMER") || upper.includes("LOAN") || upper.includes("PENSION");
 
             if (!isCommand && !isSchemeQuery) {
-                // Normal chat talk even from a citizen -> Do not interrupt
                 continue;
             }
 
-            console.log(`[WHATSAPP INBOUND] 📩 Message from registered citizen ${citizen.name || cleanPhone10}: "${text}"`);
+            console.log(`[WHATSAPP INBOUND] 📩 Message from citizen ${citizen.name || cleanPhone10}: "${text}"`);
 
             try {
-                // Call 3-Step State Machine
                 const reply = await processIncomingWhatsAppMessage(text, citizen.id);
-
                 if (reply && reply.replyText) {
                     await sock?.sendMessage(remoteJid, { text: reply.replyText });
                     console.log(`[WHATSAPP OUTBOUND] 💬 Sent reply to ${cleanPhone10}`);
@@ -165,26 +158,91 @@ export async function initWhatsAppGateway() {
         }
     });
 
+    // Start Local HTTP IPC Bridge for Next.js dispatches
+    startIPCServer();
+
     return sock;
+}
+
+let ipcServerStarted = false;
+function startIPCServer() {
+    if (ipcServerStarted) return;
+    ipcServerStarted = true;
+
+    const server = http.createServer(async (req, res) => {
+        if (req.method === "POST" && req.url === "/send") {
+            let body = "";
+            req.on("data", chunk => { body += chunk; });
+            req.on("end", async () => {
+                try {
+                    const { phone, message } = JSON.parse(body);
+                    let clean = phone.replace(/\D/g, "");
+                    if (clean.length === 10) clean = "91" + clean;
+                    const jid = `${clean}@s.whatsapp.net`;
+
+                    if (sock && connectionStatus === "CONNECTED") {
+                        await sock.sendMessage(jid, { text: message });
+                        console.log(`[REAL WHATSAPP DISPATCH] 🚀 Sent message directly to +${clean}`);
+                        res.writeHead(200, { "Content-Type": "application/json" });
+                        res.end(JSON.stringify({ success: true, deliveredTo: clean }));
+                    } else {
+                        console.log("[IPC] Socket not connected yet.");
+                        res.writeHead(503, { "Content-Type": "application/json" });
+                        res.end(JSON.stringify({ error: "WhatsApp Gateway not connected. Please scan QR in terminal." }));
+                    }
+                } catch (e: any) {
+                    console.error("[IPC ERROR]", e);
+                    res.writeHead(500, { "Content-Type": "application/json" });
+                    res.end(JSON.stringify({ error: e.message }));
+                }
+            });
+        } else {
+            res.writeHead(404);
+            res.end();
+        }
+    });
+
+    server.listen(IPC_PORT, () => {
+        console.log(`📡 Local IPC Bridge active on port ${IPC_PORT}`);
+    });
 }
 
 /**
  * Send real automated WhatsApp message to a citizen's phone
+ * Called by Next.js server actions / API routes
  */
 export async function sendRealWhatsAppMessage(recipientPhone: string, messageText: string): Promise<boolean> {
     try {
         let clean = recipientPhone.replace(/\D/g, "");
         if (clean.length === 10) clean = "91" + clean;
-        const jid = `${clean}@s.whatsapp.net`;
 
+        // 1. Try sending via local running daemon (Port 3002)
+        try {
+            const ipcRes = await fetch(`http://localhost:${IPC_PORT}/send`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ phone: clean, message: messageText }),
+            });
+
+            if (ipcRes.ok) {
+                const data = await ipcRes.json();
+                console.log(`[WHATSAPP GATEWAY IPC] ✅ Dispatched to +${clean} via daemon.`);
+                return true;
+            }
+        } catch {
+            // Daemon on port 3002 not running or unreachable
+        }
+
+        // 2. Direct socket fallback if within same process
         if (sock && connectionStatus === "CONNECTED") {
+            const jid = `${clean}@s.whatsapp.net`;
             await sock.sendMessage(jid, { text: messageText });
             console.log(`[REAL WHATSAPP DISPATCH] ✅ Sent message directly to +${clean}`);
             return true;
         }
 
-        console.log(`[WHATSAPP ALERT QUEUED] 📲 Dispatched alert to +${clean} (Daemon mode active)`);
-        return true;
+        console.log(`[WHATSAPP GATEWAY] ⚠️ Daemon not running on port ${IPC_PORT}. Run 'npm run whatsapp' in terminal to link device.`);
+        return false;
     } catch (e) {
         console.error("[REAL WHATSAPP DISPATCH ERROR]", e);
         return false;
