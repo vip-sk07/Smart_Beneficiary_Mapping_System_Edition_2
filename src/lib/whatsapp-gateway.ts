@@ -83,13 +83,13 @@ export async function initWhatsAppGateway() {
             currentQR = null;
             console.log("\n=======================================================");
             console.log("✅ [SBMS WHATSAPP GATEWAY CONNECTED SUCCESSFULLY!]");
-            console.log("🤖 Ready to dispatch welfare alerts to citizen phones!");
+            console.log("🤖 Ready to dispatch & receive welfare messages!");
             console.log(`📡 Local Dispatch Server listening on http://localhost:${IPC_PORT}/send`);
             console.log("=======================================================\n");
         }
     });
 
-    // Handle Incoming Messages with Strict Personal Protection
+    // Handle Incoming Messages with Personal Chat Protection
     sock.ev.on("messages.upsert", async ({ messages, type }) => {
         if (type !== "notify") return;
 
@@ -104,28 +104,7 @@ export async function initWhatsAppGateway() {
                 continue;
             }
 
-            const senderRaw = remoteJid.split("@")[0];
-            const cleanPhone10 = senderRaw.slice(-10);
-
-            // 🛡️ PROTECTION 2: Check if sender is a registered citizen in SBMS database
-            let citizen = null;
-            try {
-                citizen = await prisma.user.findFirst({
-                    where: {
-                        phone: {
-                            contains: cleanPhone10
-                        }
-                    }
-                });
-            } catch (err) {
-                console.error("DB check error:", err);
-            }
-
-            // IF NOT A REGISTERED CITIZEN -> IGNORE COMPLETELY
-            if (!citizen) {
-                continue;
-            }
-
+            // Extract message body
             const messageContent =
                 m.message?.conversation ||
                 m.message?.extendedTextMessage?.text ||
@@ -135,22 +114,42 @@ export async function initWhatsAppGateway() {
             const text = messageContent.trim();
             if (!text) continue;
 
-            // 🛡️ PROTECTION 3: Only process valid welfare commands
+            // 🛡️ PROTECTION 2: Strict Command Filter
+            // Only respond when someone explicitly sends a welfare command:
             const upper = text.toUpperCase();
             const isCommand = ["SHOW", "1", "2", "3", "4", "5", "SCHEMES", "STATUS", "HELP", "ALERT", "START", "NAMASTE"].includes(upper);
             const isSchemeQuery = upper.includes("SCHEME") || upper.includes("SCHOLARSHIP") || upper.includes("FARMER") || upper.includes("LOAN") || upper.includes("PENSION");
 
+            // IF CASUAL PERSONAL CHAT ("Hi bro", "Testing la dhan iruku", "Where are you") -> IGNORE COMPLETELY!
             if (!isCommand && !isSchemeQuery) {
                 continue;
             }
 
-            console.log(`[WHATSAPP INBOUND] 📩 Message from citizen ${citizen.name || cleanPhone10}: "${text}"`);
+            const senderRaw = remoteJid.split("@")[0];
+            const cleanPhone10 = senderRaw.slice(-10);
+
+            // Find citizen profile if registered
+            let citizenId = undefined;
+            try {
+                const citizen = await prisma.user.findFirst({
+                    where: {
+                        phone: {
+                            contains: cleanPhone10
+                        }
+                    }
+                });
+                if (citizen) citizenId = citizen.id;
+            } catch (err) {
+                console.error("DB check error:", err);
+            }
+
+            console.log(`[WHATSAPP INBOUND] 📩 Processing Command "${text}" from +${cleanPhone10}`);
 
             try {
-                const reply = await processIncomingWhatsAppMessage(text, citizen.id);
+                const reply = await processIncomingWhatsAppMessage(text, citizenId);
                 if (reply && reply.replyText) {
                     await sock?.sendMessage(remoteJid, { text: reply.replyText });
-                    console.log(`[WHATSAPP OUTBOUND] 💬 Sent reply to ${cleanPhone10}`);
+                    console.log(`[WHATSAPP OUTBOUND] 💬 Sent reply to +${cleanPhone10}`);
                 }
             } catch (err) {
                 console.error("Failed to send WhatsApp reply:", err);
