@@ -1,0 +1,307 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+//
+// Prisma 7+: Connection URLs are configured in prisma.config.ts
+// (DATABASE_URL / DIRECT_URL are read there, not here)
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  extensions = [pgvector(map: "vector")]
+}
+
+// ─────────────────────────────────────────────
+// Enums
+// ─────────────────────────────────────────────
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+  PREFER_NOT_TO_SAY
+}
+
+enum ApplicationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  UNDER_REVIEW
+}
+
+enum GrievanceStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+// ─────────────────────────────────────────────
+// NextAuth Models
+// ─────────────────────────────────────────────
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ─────────────────────────────────────────────
+// Core Models
+// ─────────────────────────────────────────────
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?   @db.Text
+
+  // Role
+  role Role @default(USER)
+
+  // Profile Fields
+  dob        DateTime?
+  gender     Gender?
+  phone      String?
+  aadhaarNo  String?   @unique
+  income     Float?
+  occupation String?
+  state      String?
+  address    String?   @db.Text
+  last_seen_announcement DateTime?
+
+  // Relations
+  accounts      Account[]
+  sessions      Session[]
+  applications  Application[]
+  grievances    Grievance[]
+  chatMessages  ChatMessage[]
+  notifications Notification[]
+  familyMembers FamilyMember[]
+  documents     Document[]
+  pushSubscriptions PushSubscription[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Category {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?  @db.Text
+  icon        String?
+  color       String?
+  schemes     Scheme[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Scheme {
+  id          String  @id @default(cuid())
+  title       String  @unique
+  description String  @db.Text
+  benefits    String  @db.Text
+  eligibility String  @db.Text
+  documents   String  @db.Text
+  applyLink   String?
+  isActive    Boolean @default(true)
+
+  // Structured Eligibility Criteria for Smart Matcher
+  minAge      Int?
+  maxAge      Int?
+  genderReq   String? @default("ALL") // "MALE", "FEMALE", "ALL"
+  maxIncome   Float?
+  states      String? @db.Text
+
+  // Relations
+  categoryId   String
+  category     Category         @relation(fields: [categoryId], references: [id])
+  applications Application[]
+  embedding    SchemeEmbedding?
+  announcements Announcement[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// Stores pgvector embeddings for semantic similarity search
+model SchemeEmbedding {
+  id       String                      @id @default(cuid())
+  schemeId String                      @unique
+  scheme   Scheme                      @relation(fields: [schemeId], references: [id], onDelete: Cascade)
+  /// Embedding vector for similarity search
+  vector   Unsupported("vector")?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Application {
+  id     String            @id @default(cuid())
+  status ApplicationStatus @default(PENDING)
+  notes  String?           @db.Text
+
+  // External application tracking
+  externalApplicationId String?
+  externalPortal        String?
+  externalStatus        String?
+  externalStatusUrl     String?
+  lastSyncedAt          DateTime?
+
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  schemeId String
+  scheme   Scheme @relation(fields: [schemeId], references: [id])
+
+  submittedAt DateTime  @default(now())
+  approvedAt  DateTime?
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([userId, schemeId])
+}
+
+model Grievance {
+  id          String          @id @default(cuid())
+  subject     String
+  description String          @db.Text
+  status      GrievanceStatus @default(OPEN)
+  response    String?         @db.Text
+
+  userId     String
+  user       User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt  DateTime  @default(now())
+  resolvedAt DateTime?
+  updatedAt  DateTime  @updatedAt
+}
+
+model Announcement {
+  id        String   @id @default(cuid())
+  title     String
+  content   String   @db.Text
+  isActive  Boolean  @default(true)
+  pinned    Boolean  @default(false)
+  createdBy String?
+  
+  category  String?  // general, scheme_update, deadline, new_scheme, budget
+  schemeId  String?
+  scheme    Scheme?  @relation(fields: [schemeId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ChatMessage {
+  id      String @id @default(cuid())
+  userId  String
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role    String // "user" | "assistant"
+  content String @db.Text
+
+  createdAt DateTime @default(now())
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  message   String   @db.Text
+  type      String   // application_update, new_scheme, grievance_update, announcement
+  isRead    Boolean  @default(false)
+  link      String?  // optional redirect link
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("notifications")
+}
+
+model FamilyMember {
+  id         String    @id @default(cuid())
+  userId     String
+  name       String
+  dob        DateTime?
+  gender     String?
+  relation   String    // spouse, child, parent, sibling
+  aadhaarNo  String?
+  income     Decimal?  @db.Decimal(15,2)
+  occupation String?
+  createdAt  DateTime  @default(now())
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@map("family_members")
+}
+
+// ─────────────────────────────────────────────
+// Document Vault Model
+// ─────────────────────────────────────────────
+
+model Document {
+  id        String    @id @default(cuid())
+  userId    String
+  name      String
+  type      String    // aadhaar, income_cert, photo, domicile, caste_cert, disability_cert, other
+  fileUrl   String    @db.Text  // base64 or URL
+  fileSize  Int?      // in bytes
+  expiresAt DateTime?
+  createdAt DateTime  @default(now())
+  
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("documents")
+}
+
+// ─────────────────────────────────────────────
+// Web Push Subscription Model
+// ─────────────────────────────────────────────
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String   @db.Text
+  p256dh    String   @db.Text
+  auth      String   @db.Text
+  createdAt DateTime @default(now())
+  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, endpoint])
+}
