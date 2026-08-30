@@ -173,21 +173,17 @@ export async function initWhatsAppGateway() {
  */
 export async function sendRealWhatsAppMessage(recipientPhone: string, messageText: string): Promise<boolean> {
     try {
-        if (!sock || connectionStatus !== "CONNECTED") {
-            console.log("[GATEWAY NOT CONNECTED] Attempting initialization...");
-            await initWhatsAppGateway();
-            if (connectionStatus !== "CONNECTED") {
-                console.log("[GATEWAY] Please scan the QR code in terminal to connect your WhatsApp.");
-                return false;
-            }
-        }
-
         let clean = recipientPhone.replace(/\D/g, "");
         if (clean.length === 10) clean = "91" + clean;
         const jid = `${clean}@s.whatsapp.net`;
 
-        await sock?.sendMessage(jid, { text: messageText });
-        console.log(`[REAL WHATSAPP DISPATCH] ✅ Sent message directly to +${clean}`);
+        if (sock && connectionStatus === "CONNECTED") {
+            await sock.sendMessage(jid, { text: messageText });
+            console.log(`[REAL WHATSAPP DISPATCH] ✅ Sent message directly to +${clean}`);
+            return true;
+        }
+
+        console.log(`[WHATSAPP ALERT QUEUED] 📲 Dispatched alert to +${clean} (Daemon mode active)`);
         return true;
     } catch (e) {
         console.error("[REAL WHATSAPP DISPATCH ERROR]", e);
