@@ -11,6 +11,8 @@
 import makeWASocket, {
     useMultiFileAuthState,
     DisconnectReason,
+    fetchLatestBaileysVersion,
+    Browsers,
     WASocket,
     proto
 } from "@whiskeysockets/baileys";
@@ -45,12 +47,15 @@ export async function initWhatsAppGateway() {
         fs.mkdirSync(AUTH_DIR, { recursive: true });
     }
 
+    const { version } = await fetchLatestBaileysVersion().catch(() => ({ version: [2, 3000, 1015901307] as any }));
     const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
 
     sock = makeWASocket({
+        version,
         auth: state,
         logger: pino({ level: "silent" }),
-        printQRInTerminal: false,
+        browser: Browsers.macOS("Desktop"),
+        syncFullHistory: false,
     });
 
     sock.ev.on("creds.update", saveCreds);
