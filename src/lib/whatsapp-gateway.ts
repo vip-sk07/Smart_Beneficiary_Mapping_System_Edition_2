@@ -95,6 +95,8 @@ export async function initWhatsAppGateway() {
         }
     });
 
+const processedMessageIds = new Set<string>();
+
     // Handle Incoming Messages with LID & Phone Resolution
     sock.ev.on("messages.upsert", async ({ messages, type }) => {
         if (type !== "notify") return;
@@ -102,6 +104,16 @@ export async function initWhatsAppGateway() {
         for (const m of messages) {
             // Ignore messages sent by yourself
             if (m.key.fromMe) continue;
+
+            const msgId = m.key.id;
+            if (!msgId || processedMessageIds.has(msgId)) {
+                continue; // Skip duplicate upsert events for the same message
+            }
+            processedMessageIds.add(msgId);
+            if (processedMessageIds.size > 2000) {
+                const first = processedMessageIds.values().next().value;
+                if (first) processedMessageIds.delete(first);
+            }
 
             const remoteJid = m.key.remoteJid;
             if (!remoteJid) continue;
