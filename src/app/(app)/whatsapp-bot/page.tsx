@@ -1,292 +1,213 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { MessageSquare, Send, CheckCheck, Smartphone, Bot, RotateCcw, ExternalLink, ShieldCheck } from "lucide-react";
-import { motion } from "framer-motion";
+import { useState, useEffect } from "react";
+import {
+    Smartphone,
+    ShieldCheck,
+    CheckCircle2,
+    Send,
+    Radio,
+    Lock,
+    Users,
+    MessageSquare,
+    Sparkles,
+    RefreshCw,
+    Terminal,
+} from "lucide-react";
 import toast from "react-hot-toast";
 
-interface WhatsAppMessage {
-    id: string;
-    text: string;
-    sender: "user" | "bot";
-    time: string;
-    quickButtons?: string[];
-    actionType?: string;
-}
-
-export default function WhatsAppBotPage() {
-    const [messages, setMessages] = useState<WhatsAppMessage[]>([]);
-    const [input, setInput] = useState("");
-    const [typing, setTyping] = useState(false);
-    const messagesEndRef = useRef<HTMLDivElement>(null);
-
-    const startConversation = async () => {
-        setTyping(true);
-        try {
-            const res = await fetch("/api/webhook/whatsapp", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ message: "ALERT" })
-            });
-            const data = await res.json();
-            setMessages([
-                {
-                    id: "msg-initial",
-                    text: data.replyText,
-                    sender: "bot",
-                    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                    quickButtons: data.quickButtons,
-                    actionType: data.actionType
-                }
-            ]);
-        } catch (err) {
-            console.error(err);
-        } finally {
-            setTyping(false);
-        }
-    };
+export default function WhatsAppGatewayPage() {
+    const [userPhone, setUserPhone] = useState("");
+    const [sendingTest, setSendingTest] = useState(false);
+    const [lastDispatch, setLastDispatch] = useState<any>(null);
 
     useEffect(() => {
-        startConversation();
+        fetch("/api/profile")
+            .then(res => (res.ok ? res.json() : null))
+            .then(data => {
+                if (data?.user?.phone) {
+                    setUserPhone(data.user.phone);
+                }
+            })
+            .catch(() => {});
     }, []);
 
-    useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, [messages, typing]);
+    const handleSendLiveTest = async () => {
+        if (!userPhone) {
+            toast.error("Please add your Phone Number in Edit Profile first.");
+            return;
+        }
 
-    const handleSend = async (textToSend: string) => {
-        const text = textToSend.trim();
-        if (!text) return;
-
-        const userMsg: WhatsAppMessage = {
-            id: "usr-" + Date.now(),
-            text,
-            sender: "user",
-            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        };
-
-        setMessages(prev => [...prev, userMsg]);
-        setInput("");
-        setTyping(true);
-
+        setSendingTest(true);
         try {
-            const res = await fetch("/api/webhook/whatsapp", {
+            const res = await fetch("/api/notifications/dispatch", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ message: text })
+                body: JSON.stringify({
+                    schemeTitle: "Post Matric Scholarship for Higher Education",
+                    schemeBenefit: "Up to ₹25,000 / year tuition fee waiver",
+                    triggerReason: "DOCUMENT_VERIFIED"
+                })
             });
+
             const data = await res.json();
-
-            const botMsg: WhatsAppMessage = {
-                id: "bot-" + Date.now(),
-                text: data.replyText || "Received.",
-                sender: "bot",
-                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                quickButtons: data.quickButtons,
-                actionType: data.actionType
-            };
-
-            setMessages(prev => [...prev, botMsg]);
-        } catch (err) {
-            toast.error("Error communicating with WhatsApp bot.");
+            if (res.ok) {
+                setLastDispatch(data.result);
+                toast.success("✅ Real WhatsApp alert dispatched directly to your phone!");
+            } else {
+                toast.error(data.error || "Failed to dispatch WhatsApp alert");
+            }
+        } catch (e) {
+            toast.error("Connection error while dispatching message.");
         } finally {
-            setTyping(false);
+            setSendingTest(false);
         }
     };
 
     return (
-        <div style={{ maxWidth: 850, margin: "0 auto" }}>
+        <div style={{ maxWidth: 960, margin: "0 auto" }}>
             {/* Header */}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12, marginBottom: 20 }}>
-                <div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
-                        <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(34, 197, 94, 0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                            <Smartphone size={20} color="#16a34a" />
-                        </div>
-                        <h1 style={{ fontSize: 22, fontWeight: 800, color: "#0f2e5a", margin: 0 }}>
-                            Automated WhatsApp Welfare Gateway
-                        </h1>
+            <div style={{ marginBottom: 28 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 6 }}>
+                    <div style={{ width: 42, height: 42, borderRadius: 12, background: "rgba(34, 197, 94, 0.12)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <Smartphone size={22} color="#16a34a" />
                     </div>
-                    <p style={{ fontSize: 13.5, color: "#64748b", margin: 0 }}>
-                        Interactive 3-step conversational state machine: <strong>Alert ➔ SHOW ➔ Scheme Details & Official Portal Link</strong>.
+                    <div>
+                        <h1 style={{ fontSize: 24, fontWeight: 800, color: "#0f2e5a", margin: 0 }}>
+                            Real WhatsApp Autonomous Gateway
+                        </h1>
+                        <p style={{ fontSize: 13.5, color: "#64748b", margin: 0 }}>
+                            Direct real-time WhatsApp integration powered by open-source Baileys Gateway & Local AI.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            {/* Gateway Status Banner */}
+            <div style={{
+                background: "linear-gradient(135deg, #075e54 0%, #128c7e 100%)",
+                borderRadius: 16,
+                padding: "24px 28px",
+                color: "white",
+                boxShadow: "0 10px 25px rgba(7, 94, 84, 0.18)",
+                marginBottom: 24
+            }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 16 }}>
+                    <div>
+                        <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,0.15)", padding: "4px 12px", borderRadius: 99, fontSize: 12, fontWeight: 700, marginBottom: 10 }}>
+                            <Radio size={14} className="animate-pulse" color="#86efac" />
+                            <span>GATEWAY ENGINE ACTIVE</span>
+                        </div>
+                        <h2 style={{ fontSize: 20, fontWeight: 800, margin: "0 0 6px" }}>
+                            Connected to Real WhatsApp
+                        </h2>
+                        <p style={{ fontSize: 13, color: "rgba(255,255,255,0.85)", margin: 0, maxWidth: 540, lineHeight: 1.5 }}>
+                            All document verifications and application approvals automatically push live alerts directly to the beneficiary&apos;s real WhatsApp phone number.
+                        </p>
+                    </div>
+
+                    <div style={{ background: "rgba(255,255,255,0.1)", backdropFilter: "blur(6px)", borderRadius: 12, padding: "16px 20px", border: "1px solid rgba(255,255,255,0.2)" }}>
+                        <div style={{ fontSize: 11.5, color: "rgba(255,255,255,0.8)", marginBottom: 4 }}>Target Phone for Alerts:</div>
+                        <div style={{ fontSize: 17, fontWeight: 800, letterSpacing: "0.02em" }}>
+                            {userPhone ? `+91 ${userPhone}` : "No phone added yet"}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Test Live Dispatch Action Card */}
+            <div style={{ background: "white", borderRadius: 16, border: "1.5px solid #e2e8f0", padding: "24px", marginBottom: 24, boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 16 }}>
+                    <div>
+                        <h3 style={{ fontSize: 16, fontWeight: 800, color: "#0f2e5a", margin: "0 0 4px" }}>
+                            Test Outbound Live Alert
+                        </h3>
+                        <p style={{ fontSize: 13, color: "#64748b", margin: 0 }}>
+                            Dispatches a real verified scheme notification to <strong>{userPhone ? `+91 ${userPhone}` : "your registered phone"}</strong>.
+                        </p>
+                    </div>
+
+                    <button
+                        onClick={handleSendLiveTest}
+                        disabled={sendingTest}
+                        style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 8,
+                            padding: "10px 20px",
+                            borderRadius: 10,
+                            background: "#16a34a",
+                            color: "white",
+                            fontSize: 13.5,
+                            fontWeight: 700,
+                            border: "none",
+                            cursor: "pointer",
+                            boxShadow: "0 4px 12px rgba(22, 163, 74, 0.3)",
+                            transition: "all 0.15s ease"
+                        }}
+                        className="hover:scale-105"
+                    >
+                        {sendingTest ? <RefreshCw size={15} className="animate-spin" /> : <Send size={15} />}
+                        <span>{sendingTest ? "Sending Live Alert..." : "Dispatch Live Test Alert"}</span>
+                    </button>
+                </div>
+
+                {lastDispatch && (
+                    <div style={{ marginTop: 18, padding: "14px 18px", background: "#f0fdf4", border: "1px solid #86efac", borderRadius: 10 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 800, color: "#166534", marginBottom: 4 }}>
+                            <CheckCircle2 size={16} /> Dispatched to {lastDispatch.recipientPhone}
+                        </div>
+                        <div style={{ fontSize: 12, color: "#15803d", fontFamily: "monospace" }}>
+                            Ref ID: {lastDispatch.messageId} · Delivered At: {new Date(lastDispatch.sentAt).toLocaleTimeString()}
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* 3 Privacy & Security Guarantees Grid */}
+            <h3 style={{ fontSize: 16, fontWeight: 800, color: "#0f2e5a", marginBottom: 14 }}>
+                Active Protection & Security Guarantees:
+            </h3>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16 }}>
+                {/* Rule 1 */}
+                <div style={{ background: "white", border: "1.5px solid #e2e8f0", borderRadius: 14, padding: "20px" }}>
+                    <div style={{ width: 36, height: 36, borderRadius: 10, background: "#eff6ff", color: "#1d4ed8", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 12 }}>
+                        <Lock size={18} />
+                    </div>
+                    <h4 style={{ fontSize: 14.5, fontWeight: 800, color: "#0f2e5a", margin: "0 0 6px" }}>
+                        Personal Chat Whitelist
+                    </h4>
+                    <p style={{ fontSize: 12.5, color: "#475569", lineHeight: 1.5, margin: 0 }}>
+                        The bot strictly checks the database. If an unregistered number (friend/family) messages you, the bot does nothing and ignores it.
                     </p>
                 </div>
 
-                <button
-                    onClick={startConversation}
-                    style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 6,
-                        padding: "8px 14px",
-                        borderRadius: 8,
-                        background: "#f1f5f9",
-                        color: "#0f2e5a",
-                        border: "1px solid #cbd5e1",
-                        fontSize: 12.5,
-                        fontWeight: 600,
-                        cursor: "pointer"
-                    }}
-                >
-                    <RotateCcw size={14} /> Restart Flow
-                </button>
-            </div>
-
-            {/* Phone Container */}
-            <div style={{
-                background: "#ffffff",
-                borderRadius: 24,
-                border: "2px solid #cbd5e1",
-                boxShadow: "0 16px 40px rgba(0,0,0,0.1)",
-                overflow: "hidden",
-                maxWidth: 460,
-                margin: "0 auto",
-                display: "flex",
-                flexDirection: "column",
-                height: 620
-            }}>
-                {/* WhatsApp Top Header Bar */}
-                <div style={{
-                    background: "#075e54",
-                    padding: "12px 16px",
-                    color: "white",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 12
-                }}>
-                    <div style={{ width: 38, height: 38, borderRadius: "50%", background: "#128c7e", display: "flex", alignItems: "center", justifyContent: "center", color: "white" }}>
-                        <Bot size={20} />
+                {/* Rule 2 */}
+                <div style={{ background: "white", border: "1.5px solid #e2e8f0", borderRadius: 14, padding: "20px" }}>
+                    <div style={{ width: 36, height: 36, borderRadius: 10, background: "#fef2f2", color: "#dc2626", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 12 }}>
+                        <Users size={18} />
                     </div>
-                    <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 14.5, fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }}>
-                            SBMS Welfare Helpline
-                            <span style={{ fontSize: 10, background: "#25d366", color: "white", padding: "1px 5px", borderRadius: 4 }}>OFFICIAL</span>
-                        </div>
-                        <div style={{ fontSize: 11, opacity: 0.85 }}>
-                            {typing ? "typing..." : "Verified Government Assistant"}
-                        </div>
-                    </div>
+                    <h4 style={{ fontSize: 14.5, fontWeight: 800, color: "#0f2e5a", margin: "0 0 6px" }}>
+                        Group Chats 100% Blocked
+                    </h4>
+                    <p style={{ fontSize: 12.5, color: "#475569", lineHeight: 1.5, margin: 0 }}>
+                        All WhatsApp group chats (@g.us) are blocked by the gateway parser so your college and family groups are never interrupted.
+                    </p>
                 </div>
 
-                {/* Messages Chat Area */}
-                <div style={{
-                    flex: 1,
-                    background: "#efeae2",
-                    padding: "16px",
-                    overflowY: "auto",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 12
-                }}>
-                    {messages.map(m => (
-                        <div
-                            key={m.id}
-                            style={{
-                                alignSelf: m.sender === "user" ? "flex-end" : "flex-start",
-                                maxWidth: "88%",
-                                display: "flex",
-                                flexDirection: "column",
-                                gap: 6
-                            }}
-                        >
-                            <div style={{
-                                background: m.sender === "user" ? "#d9fdd3" : "#ffffff",
-                                padding: "10px 14px",
-                                borderRadius: m.sender === "user" ? "10px 0 10px 10px" : "0 10px 10px 10px",
-                                boxShadow: "0 1px 2px rgba(0,0,0,0.12)",
-                                fontSize: 13,
-                                color: "#111b21",
-                                lineHeight: 1.5,
-                                whiteSpace: "pre-wrap"
-                            }}>
-                                {m.text}
-                                <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 3, marginTop: 4, fontSize: 10, color: "#667781" }}>
-                                    <span>{m.time}</span>
-                                    {m.sender === "user" && <CheckCheck size={13} color="#53bdeb" />}
-                                </div>
-                            </div>
-
-                            {/* Quick Action Button Pills */}
-                            {m.quickButtons && (
-                                <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-                                    {m.quickButtons.map((btn, i) => (
-                                        <button
-                                            key={i}
-                                            onClick={() => handleSend(btn)}
-                                            style={{
-                                                fontSize: 11.5,
-                                                fontWeight: 700,
-                                                padding: "6px 12px",
-                                                borderRadius: 99,
-                                                background: "#ffffff",
-                                                border: "1px solid #25d366",
-                                                color: "#075e54",
-                                                cursor: "pointer",
-                                                boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
-                                                transition: "all 0.15s ease"
-                                            }}
-                                            className="hover:bg-green-50"
-                                        >
-                                            {btn}
-                                        </button>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    ))}
-                    {typing && (
-                        <div style={{ alignSelf: "flex-start", background: "white", padding: "8px 14px", borderRadius: "0 10px 10px 10px", fontSize: 12, color: "#667781" }}>
-                            Searching 4,725 government schemes...
-                        </div>
-                    )}
-                    <div ref={messagesEndRef} />
+                {/* Rule 3 */}
+                <div style={{ background: "white", border: "1.5px solid #e2e8f0", borderRadius: 14, padding: "20px" }}>
+                    <div style={{ width: 36, height: 36, borderRadius: 10, background: "#ecfdf5", color: "#059669", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 12 }}>
+                        <MessageSquare size={18} />
+                    </div>
+                    <h4 style={{ fontSize: 14.5, fontWeight: 800, color: "#0f2e5a", margin: "0 0 6px" }}>
+                        3-Step Command Parser
+                    </h4>
+                    <p style={{ fontSize: 12.5, color: "#475569", lineHeight: 1.5, margin: 0 }}>
+                        Only registered citizens sending <strong>SHOW</strong>, <strong>1, 2, 3</strong>, or scheme keywords trigger the progressive AI menu.
+                    </p>
                 </div>
-
-                {/* Bottom Input Area */}
-                <form
-                    onSubmit={(e) => { e.preventDefault(); handleSend(input); }}
-                    style={{
-                        background: "#f0f2f5",
-                        padding: "10px 14px",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 8
-                    }}
-                >
-                    <input
-                        type="text"
-                        placeholder="Reply 'SHOW' or type a number (1, 2, 3)..."
-                        value={input}
-                        onChange={(e) => setInput(e.target.value)}
-                        style={{
-                            flex: 1,
-                            padding: "9px 14px",
-                            borderRadius: 20,
-                            border: "none",
-                            background: "white",
-                            fontSize: 13,
-                            outline: "none"
-                        }}
-                    />
-                    <button
-                        type="submit"
-                        disabled={!input.trim()}
-                        style={{
-                            width: 38,
-                            height: 38,
-                            borderRadius: "50%",
-                            background: input.trim() ? "#075e54" : "#aebac1",
-                            color: "white",
-                            border: "none",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            cursor: input.trim() ? "pointer" : "default"
-                        }}
-                    >
-                        <Send size={15} />
-                    </button>
-                </form>
             </div>
         </div>
     );

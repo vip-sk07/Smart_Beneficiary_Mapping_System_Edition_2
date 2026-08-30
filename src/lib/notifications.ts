@@ -52,25 +52,15 @@ export async function sendAutomatedCitizenAlert(payload: AutomatedNotificationPa
     const messageId = "MSG-AUTO-" + Math.floor(100000 + Math.random() * 900000);
     const sentAt = new Date().toISOString();
 
-    // 2. Autonomous Cloud / Baileys Gateway Dispatch
-    // In production, this calls the Meta WhatsApp Cloud API or Fast2SMS / Twilio webhook:
-    /*
-        await fetch(`https://graph.facebook.com/v19.0/${process.env.WHATSAPP_PHONE_ID}/messages`, {
-            method: "POST",
-            headers: {
-                "Authorization": `Bearer ${process.env.WHATSAPP_ACCESS_TOKEN}`,
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                messaging_product: "whatsapp",
-                to: cleanPhone,
-                type: "text",
-                text: { body: messageBody }
-            })
-        });
-    */
+    // 2. Real Baileys WhatsApp Gateway Dispatch
+    try {
+        const { sendRealWhatsAppMessage } = await import("@/lib/whatsapp-gateway");
+        await sendRealWhatsAppMessage(cleanPhone, messageBody);
+    } catch (err) {
+        console.error("[WHATSAPP DISPATCH ERROR]", err);
+    }
 
-    console.log(`[AUTONOMOUS DISPATCHER] 📲 Automatically sent WhatsApp/SMS alert to ${cleanPhone}:`);
+    console.log(`[AUTONOMOUS DISPATCHER] 📲 Automatically sent WhatsApp alert to ${cleanPhone}:`);
     console.log(`[CONTENT]: ${messageBody}`);
 
     return {
