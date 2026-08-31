@@ -6,6 +6,8 @@ import StatCard from "@/components/ui/StatCard";
 import { DashboardAnimate } from "@/components/ui/PageAnimations";
 import HouseholdWelfareValueCard from "@/components/welfare/HouseholdWelfareValueCard";
 import LifeEventTriggersCard from "@/components/welfare/LifeEventTriggersCard";
+import { embedText } from "@/lib/embeddings";
+import { searchSimilarSchemes } from "@/lib/rag";
 import {
     FileText,
     CheckCircle2,
@@ -84,9 +86,6 @@ export default async function DashboardPage() {
     let recommendedSchemes: any[] = [];
     if (user) {
         try {
-            const { embedText } = require("@/lib/embeddings");
-            const { searchSimilarSchemes } = require("@/lib/rag");
-            
             // Construct a rich natural language profile for the embedding engine
             const profileParts = [
                 user.age ? `${user.age} year old` : "",
