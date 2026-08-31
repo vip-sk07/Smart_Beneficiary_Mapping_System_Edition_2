@@ -1,14 +1,25 @@
 "use client";
 
-import { Eye, Download, FileText, Image, X } from "lucide-react";
+import { Eye, Download, FileText, Image as ImageIcon, X } from "lucide-react";
 import Modal from "@/components/ui/Modal";
+
+interface DocumentItem {
+    id?: string;
+    name?: string;
+    type?: string;
+    fileUrl?: string;
+    fileSize?: number | null;
+    expiresAt?: string | null;
+    createdAt?: string;
+}
 
 interface DocumentPreviewModalProps {
     isOpen: boolean;
     onClose: () => void;
-    fileUrl: string;
-    fileName: string;
-    fileType: string;
+    fileUrl?: string;
+    fileName?: string;
+    fileType?: string;
+    document?: DocumentItem | null;
 }
 
 export default function DocumentPreviewModal({
@@ -17,15 +28,28 @@ export default function DocumentPreviewModal({
     fileUrl,
     fileName,
     fileType,
+    document: docItem,
 }: DocumentPreviewModalProps) {
-    // Detect if it's a PDF or image based on data URL or type
-    const isPDF = fileType === "application/pdf" || fileUrl.startsWith("data:application/pdf");
-    const isImage = fileType.startsWith("image/") || fileUrl.startsWith("data:image/");
+    const safeUrl = fileUrl || docItem?.fileUrl || "";
+    const safeName = fileName || docItem?.name || "Document";
+    const safeType = fileType || docItem?.type || "";
+
+    // Safely detect if it's a PDF or image based on data URL or type
+    const isPDF =
+        safeType === "application/pdf" ||
+        safeUrl.startsWith("data:application/pdf") ||
+        safeUrl.toLowerCase().endsWith(".pdf");
+
+    const isImage =
+        safeType.startsWith("image/") ||
+        safeUrl.startsWith("data:image/") ||
+        Boolean(safeUrl.match(/\.(jpeg|jpg|png|webp|gif|svg)/i));
 
     const handleDownload = () => {
+        if (!safeUrl) return;
         const link = document.createElement("a");
-        link.href = fileUrl;
-        link.download = fileName;
+        link.href = safeUrl;
+        link.download = safeName;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -38,7 +62,7 @@ export default function DocumentPreviewModal({
             title={
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <Eye size={18} />
-                    <span>Preview: {fileName}</span>
+                    <span>Preview: {safeName}</span>
                 </div>
             }
             maxWidth={800}
@@ -59,19 +83,19 @@ export default function DocumentPreviewModal({
                 >
                     {isPDF ? (
                         <iframe
-                            src={fileUrl}
+                            src={safeUrl}
                             style={{
                                 width: "100%",
                                 height: 450,
                                 border: "none",
                                 borderRadius: 8,
                             }}
-                            title={fileName}
+                            title={safeName}
                         />
                     ) : isImage ? (
                         <img
-                            src={fileUrl}
-                            alt={fileName}
+                            src={safeUrl}
+                            alt={safeName}
                             style={{
                                 maxWidth: "100%",
                                 maxHeight: 450,
@@ -82,8 +106,8 @@ export default function DocumentPreviewModal({
                     ) : (
                         <div style={{ textAlign: "center", padding: 40, color: "#6b7280" }}>
                             <FileText size={48} style={{ marginBottom: 12, opacity: 0.5 }} />
-                            <p>Preview not available for this file type</p>
-                            <p style={{ fontSize: 12, marginTop: 8 }}>{fileType || "Unknown type"}</p>
+                            <p>Preview not available for this file format</p>
+                            <p style={{ fontSize: 12, marginTop: 8 }}>{safeType || "Document"}</p>
                         </div>
                     )}
                 </div>
@@ -97,10 +121,10 @@ export default function DocumentPreviewModal({
                             </span>
                         ) : isImage ? (
                             <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                                <Image size={14} /> Image
+                                <ImageIcon size={14} /> Image
                             </span>
                         ) : (
-                            <span>Unsupported format</span>
+                            <span>File Document</span>
                         )}
                     </div>
 
@@ -112,7 +136,7 @@ export default function DocumentPreviewModal({
                                 alignItems: "center",
                                 gap: 6,
                                 padding: "8px 16px",
-                                background: "#4338ca",
+                                background: "#002147",
                                 color: "white",
                                 border: "none",
                                 borderRadius: 8,
