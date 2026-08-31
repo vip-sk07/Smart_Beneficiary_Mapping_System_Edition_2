@@ -647,7 +647,7 @@ export default async function LandingPage() {
                         Designed & Developed by
                     </h2>
                     <p style={{ fontSize: 13.5, color: "#475569", margin: "0 0 24px" }}>
-                        Department of Information Technology • <strong>Mepco Schlenk Engineering College (Autonomous), Sivakasi</strong>
+                        Department of Artificial Intelligence and Data Science • <strong>Mepco Schlenk Engineering College (Autonomous), Sivakasi</strong>
                     </p>
 
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 16 }}>
@@ -657,7 +657,7 @@ export default async function LandingPage() {
                             </div>
                             <h3 style={{ fontSize: 16, fontWeight: 800, color: "#002147", margin: "0 0 4px" }}>Karan Raj T</h3>
                             <div style={{ fontSize: 12, color: "#2563eb", fontWeight: 700, marginBottom: 4 }}>Full-Stack & Autonomous AI Systems</div>
-                            <span style={{ fontSize: 11.5, color: "#64748b" }}>3rd Year B.Tech IT</span>
+                            <span style={{ fontSize: 11.5, color: "#64748b" }}>3rd Year B.Tech AI & DS</span>
                         </div>
 
                         <div style={{ background: "#f8fafc", padding: "20px 22px", borderRadius: 14, border: "1.5px solid #e2e8f0", textAlign: "center" }}>
@@ -666,7 +666,7 @@ export default async function LandingPage() {
                             </div>
                             <h3 style={{ fontSize: 16, fontWeight: 800, color: "#002147", margin: "0 0 4px" }}>Navis Joshva Donel J</h3>
                             <div style={{ fontSize: 12, color: "#2563eb", fontWeight: 700, marginBottom: 4 }}>GIS Cartography & Core Architecture</div>
-                            <span style={{ fontSize: 11.5, color: "#64748b" }}>3rd Year B.Tech IT</span>
+                            <span style={{ fontSize: 11.5, color: "#64748b" }}>3rd Year B.Tech AI & DS</span>
                         </div>
 
                         <div style={{ background: "#f8fafc", padding: "20px 22px", borderRadius: 14, border: "1.5px solid #e2e8f0", textAlign: "center" }}>
@@ -675,12 +675,12 @@ export default async function LandingPage() {
                             </div>
                             <h3 style={{ fontSize: 16, fontWeight: 800, color: "#002147", margin: "0 0 4px" }}>Srithinesh S</h3>
                             <div style={{ fontSize: 12, color: "#2563eb", fontWeight: 700, marginBottom: 4 }}>Data Intelligence & Verification Systems</div>
-                            <span style={{ fontSize: 11.5, color: "#64748b" }}>3rd Year B.Tech IT</span>
+                            <span style={{ fontSize: 11.5, color: "#64748b" }}>3rd Year B.Tech AI & DS</span>
                         </div>
                     </div>
 
                     <div style={{ marginTop: 20, fontSize: 13, color: "#475569" }}>
-                        Project Mentored & Supervised by: <strong>Mr. Emerson Nithiyaraj E</strong> (Assistant Professor, Dept of IT)
+                        Project Mentored & Supervised by: <strong>Mr. Emerson Nithiyaraj E</strong> (Assistant Professor, Dept of AI & DS)
                     </div>
                 </div>
             </section>
