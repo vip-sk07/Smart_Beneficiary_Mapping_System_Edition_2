@@ -148,16 +148,16 @@ export default async function LandingPage() {
             }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 600 }}>
                     <span style={{ color: "#FF9933" }}>🇮🇳</span>
-                    <span>GOVERNMENT OF INDIA</span>
+                    <span>SMART BENEFICIARY MAPPING SYSTEM (SBMS)</span>
                     <span style={{ color: "#cbd5e1" }}>|</span>
-                    <span>NATIONAL CITIZEN WELFARE SERVICES DIRECTORY</span>
+                    <span>CITIZEN WELFARE DISCOVERY PLATFORM</span>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
                     <Link href="/schemes" style={{ color: "#1e40af", textDecoration: "none", fontWeight: 600 }}>
                         Browse 4,700+ Schemes
                     </Link>
                     <span style={{ color: "#cbd5e1" }}>|</span>
-                    <span>English / हिन्दी / मराठी</span>
+                    <span>Developed by KR, NJ, SST</span>
                 </div>
             </div>
 
@@ -192,7 +192,7 @@ export default async function LandingPage() {
                                 Smart Beneficiary Mapping
                             </div>
                             <div style={{ color: "#64748b", fontSize: 11, fontWeight: 600, letterSpacing: "0.02em" }}>
-                                National AI Welfare Platform (SBMS)
+                                Smart Beneficiary Mapping System (SBMS)
                             </div>
                         </div>
                     </Link>
@@ -265,7 +265,7 @@ export default async function LandingPage() {
                 }}>
                     <Sparkles size={14} color="#1d4ed8" />
                     <span style={{ color: "#1d4ed8", fontSize: 12.5, fontWeight: 700 }}>
-                        Official Indian Welfare Services • 4,700+ Schemes Indexed
+                        Smart Welfare Discovery Engine • 4,700+ Schemes Indexed
                     </span>
                 </div>
 
@@ -637,7 +637,55 @@ export default async function LandingPage() {
                 </div>
             </section>
 
-            {/* 10. Official Government Portal Footer */}
+            {/* 10. Engineering & Developer Credits Section */}
+            <section style={{ background: "#ffffff", padding: "48px 24px", borderTop: "1px solid #e2e8f0", borderBottom: "1px solid #e2e8f0" }}>
+                <div style={{ maxWidth: 1060, margin: "0 auto", textAlign: "center" }}>
+                    <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "#f0fdf4", color: "#16a34a", padding: "4px 14px", borderRadius: 99, fontSize: 12, fontWeight: 700, marginBottom: 12 }}>
+                        <span>🎓 ACADEMIC CAPSTONE INNOVATION & RESEARCH PROJECT</span>
+                    </div>
+                    <h2 style={{ fontSize: 22, fontWeight: 800, color: "#002147", margin: "0 0 6px" }}>
+                        Designed & Developed by
+                    </h2>
+                    <p style={{ fontSize: 13.5, color: "#475569", margin: "0 0 24px" }}>
+                        Department of Information Technology • <strong>Mepco Schlenk Engineering College (Autonomous), Sivakasi</strong>
+                    </p>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 16 }}>
+                        <div style={{ background: "#f8fafc", padding: "20px 22px", borderRadius: 14, border: "1.5px solid #e2e8f0", textAlign: "center" }}>
+                            <div style={{ width: 42, height: 42, borderRadius: "50%", background: "#002147", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 14, margin: "0 auto 12px" }}>
+                                KR
+                            </div>
+                            <h3 style={{ fontSize: 16, fontWeight: 800, color: "#002147", margin: "0 0 4px" }}>Karan Raj T</h3>
+                            <div style={{ fontSize: 12, color: "#2563eb", fontWeight: 700, marginBottom: 4 }}>Full-Stack & Autonomous AI Systems</div>
+                            <span style={{ fontSize: 11.5, color: "#64748b" }}>3rd Year B.Tech IT</span>
+                        </div>
+
+                        <div style={{ background: "#f8fafc", padding: "20px 22px", borderRadius: 14, border: "1.5px solid #e2e8f0", textAlign: "center" }}>
+                            <div style={{ width: 42, height: 42, borderRadius: "50%", background: "#002147", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 14, margin: "0 auto 12px" }}>
+                                NJ
+                            </div>
+                            <h3 style={{ fontSize: 16, fontWeight: 800, color: "#002147", margin: "0 0 4px" }}>Navis Joshva Donel J</h3>
+                            <div style={{ fontSize: 12, color: "#2563eb", fontWeight: 700, marginBottom: 4 }}>GIS Cartography & Core Architecture</div>
+                            <span style={{ fontSize: 11.5, color: "#64748b" }}>3rd Year B.Tech IT</span>
+                        </div>
+
+                        <div style={{ background: "#f8fafc", padding: "20px 22px", borderRadius: 14, border: "1.5px solid #e2e8f0", textAlign: "center" }}>
+                            <div style={{ width: 42, height: 42, borderRadius: "50%", background: "#002147", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 14, margin: "0 auto 12px" }}>
+                                SST
+                            </div>
+                            <h3 style={{ fontSize: 16, fontWeight: 800, color: "#002147", margin: "0 0 4px" }}>Srithinesh S</h3>
+                            <div style={{ fontSize: 12, color: "#2563eb", fontWeight: 700, marginBottom: 4 }}>Data Intelligence & Verification Systems</div>
+                            <span style={{ fontSize: 11.5, color: "#64748b" }}>3rd Year B.Tech IT</span>
+                        </div>
+                    </div>
+
+                    <div style={{ marginTop: 20, fontSize: 13, color: "#475569" }}>
+                        Project Mentored & Supervised by: <strong>Mr. Emerson Nithiyaraj E</strong> (Assistant Professor, Dept of IT)
+                    </div>
+                </div>
+            </section>
+
+            {/* 11. Official SBMS Platform Footer */}
             <footer style={{ background: "#002147", color: "white", padding: "50px 24px 30px", borderTop: "4px solid #FF9933" }}>
                 <div style={{ maxWidth: 1240, margin: "0 auto" }}>
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 32, marginBottom: 40 }}>
@@ -649,7 +697,7 @@ export default async function LandingPage() {
                                 <span style={{ fontSize: 17, fontWeight: 800, letterSpacing: "-0.01em" }}>Smart Beneficiary Mapping</span>
                             </div>
                             <p style={{ fontSize: 12.5, color: "rgba(255,255,255,0.7)", lineHeight: 1.7 }}>
-                                National AI Welfare Portal designed to empower every Indian citizen with fast, transparent, and direct access to government schemes.
+                                AI Welfare Discovery Platform designed to empower citizens with fast, transparent, and direct entitlement matching for welfare programs.
                             </p>
                         </div>
 
@@ -690,18 +738,18 @@ export default async function LandingPage() {
 
                         {/* Column 4: Helpdesk */}
                         <div>
-                            <h4 style={{ fontSize: 14, fontWeight: 700, marginBottom: 14, color: "#93c5fd" }}>National Portal Support</h4>
+                            <h4 style={{ fontSize: 14, fontWeight: 700, marginBottom: 14, color: "#93c5fd" }}>Engineering Team</h4>
                             <p style={{ fontSize: 12.5, color: "rgba(255,255,255,0.7)", lineHeight: 1.6 }}>
-                                Available 24/7 with local multilingual AI assistance.
+                                Karan Raj T, Navis Joshva Donel J, Srithinesh S (KR, NJ, SST)
                             </p>
                             <div style={{ marginTop: 10, fontSize: 12, color: "#93c5fd", fontWeight: 600 }}>
-                                🇮🇳 Proudly built for the citizens of India
+                                🎓 Mepco Schlenk Engineering College
                             </div>
                         </div>
                     </div>
 
                     <div style={{ borderTop: "1px solid rgba(255,255,255,0.1)", paddingTop: 20, textAlign: "center", fontSize: 12, color: "rgba(255,255,255,0.5)" }}>
-                        © 2026 Smart Beneficiary Mapping System (SBMS) • Government Welfare Discovery Portal • All data synchronized with official government registries.
+                        © 2026 Smart Beneficiary Mapping System (SBMS) • Developed with ❤️ by Karan Raj T, Navis Joshva Donel J, Srithinesh S (KR, NJ, SST).
                     </div>
                 </div>
             </footer>

@@ -69,10 +69,11 @@ export default function SendSchemeToWhatsApp({
 
                 messageText += `━━━━━━━━━━━━━━━━━━━━\n`;
                 messageText += `🔗 *Access Full Dashboard:* http://localhost:3001/eligibility\n`;
-                messageText += `_Government of India Welfare Mapping Initiative_`;
+                messageText += `_Smart Beneficiary Mapping System (SBMS) — Developed by KR, NJ, SST_`;
             } else if (schemeTitle) {
                 // Single Scheme Alert
-                messageText = `🇮🇳 *GOVERNMENT SCHEME ALERT | SBMS*\n`;
+                messageText = `🇮🇳 *SBMS WELFARE SCHEME ALERT*\n`;
+                messageText += `*Developed by KR, NJ, SST*\n`;
                 messageText += `━━━━━━━━━━━━━━━━━━━━\n`;
                 messageText += `📌 *Scheme:* ${schemeTitle}\n\n`;
                 if (schemeBenefit) {

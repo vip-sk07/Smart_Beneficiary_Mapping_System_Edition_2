@@ -43,7 +43,7 @@ export default function MockPortal() {
                 <ShieldAlert size={28} />
                 <div>
                     <h1 style={{ fontWeight: 700, fontSize: 20, margin: 0 }}>National Scholarship Mock Portal</h1>
-                    <p style={{ margin: 0, opacity: 0.8, fontSize: 13 }}>Government of India Initiative</p>
+                    <p style={{ margin: 0, opacity: 0.8, fontSize: 13 }}>Smart Beneficiary Mapping System (SBMS) Integration Sandbox</p>
                 </div>
             </div>
 
