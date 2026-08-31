@@ -35,144 +35,57 @@ export interface RealGovCenter {
     osmId: string;
 }
 
-// Haversine distance calculator in km
-function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-    const R = 6371; // Earth radius in km
-    const dLat = (lat2 - lat1) * (Math.PI / 180);
-    const dLon = (lon2 - lon1) * (Math.PI / 180);
-    const a =
-        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-        Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
-        Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return parseFloat((R * c).toFixed(1));
-}
-
-// Generate verified services based on authentic OpenStreetMap amenity/office category
-function getServicesForOSMType(type: string, name: string): string[] {
-    const lower = (name + " " + type).toLowerCase();
-    if (lower.includes("post") || lower.includes("mail")) {
-        return ["Aadhaar Biometric e-KYC", "Post Office Savings DBT Account", "PM-Kisan e-KYC Verification", "Postal Life Insurance"];
-    }
-    if (lower.includes("taluk") || lower.includes("tahsildar") || lower.includes("revenue") || lower.includes("collector")) {
-        return ["Income & Community Certificates", "Patta / Chitta Land Transfer", "Old Age Pension (OAP)", "Chief Minister Relief Fund"];
-    }
-    if (lower.includes("municipal") || lower.includes("panchayat") || lower.includes("townhall")) {
-        return ["Civic Welfare Grants", "Birth & Death Certification", "PMAY Housing Scheme Assistance"];
-    }
-    return ["Aadhaar e-KYC", "Digital Seva Welfare Enrollment", "DBT Certificate Verification", "National Scholarship Submission"];
-}
-
 export default function CSCLocatorMap() {
     const [searchQuery, setSearchQuery] = useState("");
     const [centers, setCenters] = useState<RealGovCenter[]>([]);
     const [selectedCenter, setSelectedCenter] = useState<RealGovCenter | null>(null);
     const [loading, setLoading] = useState(true);
-    const [userLocation, setUserLocation] = useState<{ lat: number; lng: number }>({ lat: 9.4533, lng: 77.7978 }); // Sivakasi / Virudhunagar
+    const [currentLocationName, setCurrentLocationName] = useState("Virudhunagar / Sivakasi");
 
-    // Fetch 100% authentic government & post offices from OpenStreetMap Overpass GIS API
-    const fetchOSMGovOffices = async (targetLat: number, targetLng: number, labelName = "Virudhunagar Region") => {
+    // Fetch real OSM centers via our backend API route
+    const searchCenters = async (queryText: string, userLat?: number, userLng?: number) => {
         setLoading(true);
         try {
-            const overpassUrl = "https://overpass-api.de/api/interpreter";
-            const query = `[out:json][timeout:15];(node["amenity"="post_office"](around:45000, ${targetLat}, ${targetLng});node["office"="government"](around:45000, ${targetLat}, ${targetLng});node["amenity"="townhall"](around:45000, ${targetLat}, ${targetLng}););out body 20;`;
+            let url = `/api/centers/search?q=${encodeURIComponent(queryText)}`;
+            if (userLat && userLng) {
+                url += `&lat=${userLat}&lng=${userLng}`;
+            }
 
-            const res = await fetch(overpassUrl, {
-                method: "POST",
-                headers: { "Content-Type": "application/x-www-form-urlencoded" },
-                body: "data=" + encodeURIComponent(query),
-            });
-
+            const res = await fetch(url);
             if (res.ok) {
                 const data = await res.json();
-                const elements = data.elements || [];
-
-                if (elements.length > 0) {
-                    const mapped: RealGovCenter[] = elements.map((el: any) => {
-                        const tags = el.tags || {};
-                        const rawName = tags.name || tags["name:en"] || tags["name:ta"] || tags.amenity || tags.office || "Government Public Office";
-                        const placeType = tags.amenity || tags.office || "government_office";
-                        const lat = el.lat;
-                        const lng = el.lon;
-                        const dist = calculateDistance(userLocation.lat, userLocation.lng, lat, lng);
-                        const street = tags["addr:street"] || tags["addr:suburb"] || tags["addr:city"] || labelName;
-                        const pincode = tags["addr:postcode"] || "626001";
-
-                        return {
-                            id: `osm-${el.id}`,
-                            osmId: String(el.id),
-                            name: rawName,
-                            placeType: placeType.replace(/_/g, " ").toUpperCase(),
-                            address: `${rawName}, ${street}, Tamil Nadu, India`,
-                            state: "Tamil Nadu",
-                            district: labelName,
-                            pincode,
-                            phone: "+91 1800-3000-3468",
-                            timing: "9:30 AM – 6:00 PM (Mon-Sat)",
-                            services: getServicesForOSMType(placeType, rawName),
-                            lat,
-                            lng,
-                            distanceKm: dist,
-                        };
-                    });
-
-                    // Sort by closest distance
-                    mapped.sort((a, b) => (a.distanceKm || 0) - (b.distanceKm || 0));
-
-                    setCenters(mapped);
-                    setSelectedCenter(mapped[0]);
+                if (data.success && data.centers?.length > 0) {
+                    setCenters(data.centers);
+                    setSelectedCenter(data.centers[0]);
+                    setCurrentLocationName(data.query || queryText);
+                    toast.success(`📍 Found ${data.centers.length} authentic government centers in ${data.query || queryText}!`);
                 } else {
-                    toast.error(`No OSM nodes found within 45km of ${labelName}.`);
+                    toast.error(`No authentic centers found for "${queryText}".`);
                 }
             } else {
-                toast.error("Failed to query OpenStreetMap Overpass servers.");
+                toast.error("Failed to query OpenStreetMap GIS API.");
             }
         } catch (err) {
-            console.error("OSM Overpass Error:", err);
-            toast.error("Network timeout connecting to OpenStreetMap.");
+            console.error("Fetch Centers Error:", err);
+            toast.error("Network error connecting to OpenStreetMap.");
         } finally {
             setLoading(false);
         }
     };
 
-    // Initial Load: Fetch real government offices in Sivakasi / Virudhunagar
+    // Initial Load: Virudhunagar & Sivakasi Government Hubs
     useEffect(() => {
-        fetchOSMGovOffices(9.4533, 77.7978, "Virudhunagar / Sivakasi");
+        searchCenters("Virudhunagar");
     }, []);
 
-    // Search Handler: Geocode query to lat/lng, then fetch real OSM offices around that point
-    const handleSearch = async (e: React.FormEvent) => {
+    const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
         const q = searchQuery.trim();
         if (!q) {
-            fetchOSMGovOffices(9.4533, 77.7978, "Virudhunagar / Sivakasi");
+            searchCenters("Virudhunagar");
             return;
         }
-
-        setLoading(true);
-        try {
-            // Geocode place name using Nominatim
-            const geoRes = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q + " India")}&format=json&limit=1`, {
-                headers: { "Accept-Language": "en-IN,en;q=0.9" }
-            });
-
-            if (geoRes.ok) {
-                const geoData = await geoRes.json();
-                if (geoData && geoData.length > 0) {
-                    const targetLat = parseFloat(geoData[0].lat);
-                    const targetLng = parseFloat(geoData[0].lon);
-                    const placeName = geoData[0].display_name.split(",")[0];
-
-                    toast.success(`📍 Geocoded "${placeName}". Fetching authentic OSM offices...`);
-                    await fetchOSMGovOffices(targetLat, targetLng, placeName);
-                } else {
-                    toast.error(`Could not locate "${q}". Showing regional centers.`);
-                    fetchOSMGovOffices(9.4533, 77.7978, "Virudhunagar / Sivakasi");
-                }
-            }
-        } catch {
-            fetchOSMGovOffices(9.4533, 77.7978, "Virudhunagar / Sivakasi");
-        }
+        searchCenters(q);
     };
 
     // Live GPS Location
@@ -186,12 +99,11 @@ export default function CSCLocatorMap() {
         navigator.geolocation.getCurrentPosition(
             (pos) => {
                 const { latitude, longitude } = pos.coords;
-                setUserLocation({ lat: latitude, lng: longitude });
-                toast.success("GPS Locked! Querying live OpenStreetMap centers...", { id: "gps" });
-                fetchOSMGovOffices(latitude, longitude, "Your Current Location");
+                toast.success("GPS Locked! Finding nearest government offices...", { id: "gps" });
+                searchCenters("nearby", latitude, longitude);
             },
             () => {
-                toast.error("Could not retrieve GPS coordinates. Searching regional offices.", { id: "gps" });
+                toast.error("Could not retrieve GPS coordinates. Showing default region.", { id: "gps" });
             }
         );
     };
@@ -222,7 +134,7 @@ export default function CSCLocatorMap() {
                         <Search size={16} color="#94a3b8" style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)" }} />
                         <input
                             type="text"
-                            placeholder="Enter any PIN Code, Taluk (Sivakasi, Sattur), or City (Madurai, Chennai)..."
+                            placeholder="Enter any City or Taluk (e.g. Trichy, Sivakasi, Madurai, Chennai, Sattur, 626005)..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             style={{
@@ -284,14 +196,14 @@ export default function CSCLocatorMap() {
             {loading ? (
                 <div style={{ textAlign: "center", padding: "60px 20px", background: "white", borderRadius: 16, border: "1.5px solid #e2e8f0" }}>
                     <Loader2 size={32} color="#002147" className="animate-spin" style={{ margin: "0 auto 12px" }} />
-                    <div style={{ fontSize: 15, fontWeight: 700, color: "#0f2e5a" }}>Querying OpenStreetMap Overpass GIS Engine...</div>
-                    <div style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>Streaming authentic Taluk Offices, Post Offices, and Collectorates.</div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: "#0f2e5a" }}>Querying OpenStreetMap GIS Database...</div>
+                    <div style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>Retrieving real-time government and postal facilities for {currentLocationName}.</div>
                 </div>
             ) : centers.length === 0 ? (
                 <div style={{ textAlign: "center", padding: "60px 20px", background: "white", borderRadius: 16, border: "1.5px solid #e2e8f0" }}>
                     <MapPin size={32} color="#94a3b8" style={{ margin: "0 auto 12px" }} />
                     <div style={{ fontSize: 15, fontWeight: 700, color: "#0f2e5a" }}>No authentic centers found for this query.</div>
-                    <div style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>Try searching for &quot;Sivakasi&quot;, &quot;Virudhunagar&quot;, or &quot;Madurai&quot;.</div>
+                    <div style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>Try searching for a town name like &quot;Trichy&quot;, &quot;Sivakasi&quot;, or &quot;Madurai&quot;.</div>
                 </div>
             ) : (
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))", gap: 20 }}>
@@ -299,7 +211,7 @@ export default function CSCLocatorMap() {
                     <div>
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
                             <div style={{ fontSize: 13, fontWeight: 700, color: "#475569" }}>
-                                {centers.length} Authentic OpenStreetMap Places Found
+                                {centers.length} Authentic OpenStreetMap Places in {currentLocationName}
                             </div>
                             <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 700, background: "#ecfdf5", color: "#059669", padding: "2px 8px", borderRadius: 99 }}>
                                 <Sparkles size={12} /> 100% Live OSM GIS Data
@@ -364,19 +276,20 @@ export default function CSCLocatorMap() {
                                         {selectedCenter.name}
                                     </h2>
                                     <p style={{ fontSize: 12.5, color: "#64748b", margin: 0 }}>
-                                        OSM Node ID: <strong>{selectedCenter.osmId}</strong> · Category: {selectedCenter.placeType}
+                                        OSM Node ID: <strong>{selectedCenter.osmId}</strong> · District: {selectedCenter.district} ({selectedCenter.state})
                                     </p>
                                 </div>
 
-                                {/* Live OpenStreetMap Tile Embed with Exact Lat/Lng Marker */}
+                                {/* Live OpenStreetMap Tile Embed Centered Exactly on Selected Place */}
                                 <div style={{ height: 260, width: "100%", position: "relative", background: "#e2e8f0" }}>
                                     <iframe
+                                        key={selectedCenter.id}
                                         title="OpenStreetMap"
                                         width="100%"
                                         height="100%"
                                         frameBorder="0"
                                         scrolling="no"
-                                        src={`https://www.openstreetmap.org/export/embed.html?bbox=${selectedCenter.lng - 0.012}%2C${selectedCenter.lat - 0.012}%2C${selectedCenter.lng + 0.012}%2C${selectedCenter.lat + 0.012}&layer=mapnik&marker=${selectedCenter.lat}%2C${selectedCenter.lng}`}
+                                        src={`https://www.openstreetmap.org/export/embed.html?bbox=${selectedCenter.lng - 0.015}%2C${selectedCenter.lat - 0.015}%2C${selectedCenter.lng + 0.015}%2C${selectedCenter.lat + 0.015}&layer=mapnik&marker=${selectedCenter.lat}%2C${selectedCenter.lng}`}
                                         style={{ border: 0 }}
                                     />
                                 </div>

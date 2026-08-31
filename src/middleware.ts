@@ -17,6 +17,7 @@ export default auth(function middleware(req: NextRequest & { auth: unknown }) {
         pathname.startsWith(API_AUTH_PREFIX) ||
         pathname.startsWith(API_SCHEMES_PREFIX) ||
         pathname.startsWith("/api/webhook/") ||
+        pathname.startsWith("/api/centers/") ||
         pathname.startsWith("/schemes/")
     ) {
         return NextResponse.next();
