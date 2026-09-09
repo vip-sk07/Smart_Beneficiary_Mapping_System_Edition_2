@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import ApplyButton from "./ApplyButton";
+import SendSchemeToWhatsApp from "@/components/whatsapp/SendSchemeToWhatsApp";
 import {
     ArrowLeft,
     CheckCircle2,
@@ -16,7 +17,9 @@ import {
     Building2,
     Shield,
     HelpCircle,
-    Check
+    Check,
+    MapPin,
+    Search,
 } from "lucide-react";
 import { checkSchemeEligibility } from "@/lib/eligibility";
 
@@ -176,8 +179,8 @@ export default async function SchemeDetailPage({
                     </div>
                 )}
 
-                {/* Main Action Buttons */}
-                <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+                {/* Main Action & Fallback Application Suite */}
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
                     {scheme.applyLink && (
                         <a
                             href={scheme.applyLink}
@@ -187,21 +190,69 @@ export default async function SchemeDetailPage({
                                 display: "inline-flex",
                                 alignItems: "center",
                                 gap: 6,
-                                padding: "11px 22px",
+                                padding: "10px 20px",
                                 borderRadius: 8,
                                 background: "#0f2e5a",
                                 color: "white",
-                                fontSize: 14,
+                                fontSize: 13.5,
                                 fontWeight: 700,
                                 textDecoration: "none",
                                 boxShadow: "0 2px 6px rgba(15, 46, 90, 0.2)",
-                                transition: "all 0.15s ease",
                             }}
                             className="hover:bg-blue-900"
                         >
-                            Apply on Official Portal <ExternalLink size={15} />
+                            Apply on State / Ministry Portal <ExternalLink size={14} />
                         </a>
                     )}
+
+                    {/* National myScheme Gateway Backup Link */}
+                    <a
+                        href={`https://www.myscheme.gov.in/search?q=${encodeURIComponent(scheme.title)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 6,
+                            padding: "10px 16px",
+                            borderRadius: 8,
+                            background: "#eff6ff",
+                            color: "#1d4ed8",
+                            fontSize: 13,
+                            fontWeight: 700,
+                            textDecoration: "none",
+                            border: "1.5px solid #bfdbfe",
+                        }}
+                    >
+                        <Search size={14} /> National myScheme Portal
+                    </a>
+
+                    {/* Offline CSC Center Locator Link */}
+                    <Link
+                        href="/centers"
+                        style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 6,
+                            padding: "10px 16px",
+                            borderRadius: 8,
+                            background: "#f8fafc",
+                            color: "#475569",
+                            fontSize: 13,
+                            fontWeight: 700,
+                            textDecoration: "none",
+                            border: "1.5px solid #cbd5e1",
+                        }}
+                    >
+                        <MapPin size={14} color="#0284c7" /> Apply via CSC Kendra
+                    </Link>
+
+                    {/* WhatsApp Alert Button */}
+                    <SendSchemeToWhatsApp
+                        schemeTitle={scheme.title}
+                        schemeBenefit={scheme.benefits?.substring(0, 100)}
+                        applyLink={scheme.applyLink || `https://www.myscheme.gov.in/search?q=${encodeURIComponent(scheme.title)}`}
+                    />
 
                     {existingApplication ? (
                         <div
