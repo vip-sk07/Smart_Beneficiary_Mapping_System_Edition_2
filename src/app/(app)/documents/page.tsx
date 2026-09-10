@@ -26,6 +26,7 @@ import Modal from "@/components/ui/Modal";
 import { DocumentsAnimate } from "@/components/ui/PageAnimations";
 import DocumentPreviewModal from "@/components/vault/DocumentPreviewModal";
 import QRCodeCertificateScanner from "@/components/vault/QRCodeCertificateScanner";
+import DigiLockerSyncModal from "@/components/vault/DigiLockerSyncModal";
 
 // 🏛️ The 6 Essential Government Documents Needed for Welfare Schemes
 const ESSENTIAL_DOC_SLOTS = [
@@ -109,6 +110,9 @@ export default function DocumentVaultPage() {
     // Preview modal states
     const [previewModalOpen, setPreviewModalOpen] = useState(false);
     const [previewDoc, setPreviewDoc] = useState<Document | null>(null);
+
+    // DigiLocker Sync state
+    const [digiLockerModalOpen, setDigiLockerModalOpen] = useState(false);
 
     // Form states
     const [docType, setDocType] = useState("aadhaar");
@@ -305,25 +309,47 @@ export default function DocumentVaultPage() {
                         </p>
                     </div>
 
-                    <button
-                        onClick={() => { resetForm(); setUploadModalOpen(true); }}
-                        style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: 8,
-                            padding: "10px 20px",
-                            borderRadius: 10,
-                            background: "#002147",
-                            color: "white",
-                            fontSize: 13.5,
-                            fontWeight: 700,
-                            border: "none",
-                            cursor: "pointer",
-                            boxShadow: "0 4px 12px rgba(0, 33, 71, 0.15)",
-                        }}
-                    >
-                        <Plus size={16} /> Upload New Document
-                    </button>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                        <button
+                            onClick={() => setDigiLockerModalOpen(true)}
+                            style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 8,
+                                padding: "10px 18px",
+                                borderRadius: 10,
+                                background: "#0284c7",
+                                color: "white",
+                                fontSize: 13.5,
+                                fontWeight: 700,
+                                border: "none",
+                                cursor: "pointer",
+                                boxShadow: "0 4px 12px rgba(2, 132, 199, 0.25)",
+                            }}
+                        >
+                            <ShieldCheck size={16} /> Sync with DigiLocker
+                        </button>
+
+                        <button
+                            onClick={() => { resetForm(); setUploadModalOpen(true); }}
+                            style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 8,
+                                padding: "10px 20px",
+                                borderRadius: 10,
+                                background: "#002147",
+                                color: "white",
+                                fontSize: 13.5,
+                                fontWeight: 700,
+                                border: "none",
+                                cursor: "pointer",
+                                boxShadow: "0 4px 12px rgba(0, 33, 71, 0.15)",
+                            }}
+                        >
+                            <Plus size={16} /> Upload New Document
+                        </button>
+                    </div>
                 </div>
 
                 {/* Vault Readiness Progress Banner */}
@@ -686,6 +712,13 @@ export default function DocumentVaultPage() {
                         </div>
                     </div>
                 </Modal>
+
+                {/* DigiLocker National Gateway Sync Modal */}
+                <DigiLockerSyncModal
+                    isOpen={digiLockerModalOpen}
+                    onClose={() => setDigiLockerModalOpen(false)}
+                    onSuccess={() => fetchDocuments()}
+                />
             </div>
         </DocumentsAnimate>
     );
