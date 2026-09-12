@@ -9,17 +9,20 @@ import { rateLimit } from "@/lib/rateLimit";
 
 import { authConfig } from "@/auth.config";
 
+const googleClientId = process.env.GOOGLE_CLIENT_ID || process.env.AUTH_GOOGLE_ID;
+const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET || process.env.AUTH_GOOGLE_SECRET;
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
     ...authConfig,
     adapter: PrismaAdapter(prisma),
     session: { strategy: "jwt" },
-    secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || "fallback_secret_sbms_2026",
+    secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
     providers: [
-        ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+        ...(googleClientId && googleClientSecret
             ? [
                   GoogleProvider({
-                      clientId: process.env.GOOGLE_CLIENT_ID,
-                      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+                      clientId: googleClientId,
+                      clientSecret: googleClientSecret,
                       allowDangerousEmailAccountLinking: true,
                   }),
               ]
