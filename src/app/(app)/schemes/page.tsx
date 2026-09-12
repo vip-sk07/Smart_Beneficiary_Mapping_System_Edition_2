@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { SchemesAnimate } from "@/components/ui/PageAnimations";
+import { useLanguage } from "@/components/providers/LanguageProvider";
 
 export const dynamic = "force-dynamic";
 
@@ -59,6 +60,7 @@ const INDIAN_STATES_AND_UTS = [
 ];
 
 export default function SchemesPage() {
+    const { t } = useLanguage();
     const [schemes, setSchemes] = useState<SchemeWithCategory[]>([]);
     const [categories, setCategories] = useState<any[]>([]);
     const [search, setSearch] = useState("");
@@ -168,13 +170,13 @@ export default function SchemesPage() {
                 }}>
                     <div>
                         <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,0.12)", padding: "3px 10px", borderRadius: 4, fontSize: 11, fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: 8 }}>
-                            National Welfare Directory
+                            {t("schemes.banner_tag", "National Welfare Directory")}
                         </div>
                         <h1 style={{ fontSize: 24, fontWeight: 800, letterSpacing: "-0.02em", margin: 0 }}>
-                            Browse Government Schemes
+                            {t("schemes.banner_title", "Browse Government Schemes")}
                         </h1>
                         <p style={{ fontSize: 13.5, color: "rgba(255,255,255,0.8)", marginTop: 4, margin: 0 }}>
-                            Explore and filter official Central and State Government welfare programs
+                            {t("schemes.banner_desc", "Explore and filter official Central and State Government welfare programs")}
                         </p>
                     </div>
 
@@ -189,7 +191,7 @@ export default function SchemesPage() {
                             {totalCount.toLocaleString("en-IN")}
                         </div>
                         <div style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.75)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
-                            Schemes Available
+                            {t("schemes.schemes_available", "Schemes Available")}
                         </div>
                     </div>
                 </div>
@@ -209,7 +211,7 @@ export default function SchemesPage() {
                     }}>
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18, paddingBottom: 12, borderBottom: "1px solid #f1f5f9" }}>
                             <div style={{ display: "flex", alignItems: "center", gap: 6, fontWeight: 700, color: "#0f2e5a", fontSize: 15 }}>
-                                <Filter size={16} /> Filters
+                                <Filter size={16} /> {t("filters.title", "Filters")}
                             </div>
                             {hasActiveFilters && (
                                 <button
@@ -226,7 +228,7 @@ export default function SchemesPage() {
                                         cursor: "pointer",
                                     }}
                                 >
-                                    <RotateCcw size={12} /> Reset
+                                    <RotateCcw size={12} /> {t("filters.reset", "Reset")}
                                 </button>
                             )}
                         </div>
@@ -235,7 +237,7 @@ export default function SchemesPage() {
                             {/* State / UT Filter */}
                             <div>
                                 <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12.5, fontWeight: 700, color: "#334155", marginBottom: 8 }}>
-                                    <MapPin size={14} color="#64748b" /> State / UT
+                                    <MapPin size={14} color="#64748b" /> {t("filters.state", "State / UT")}
                                 </label>
                                 <select
                                     value={selectedState}
@@ -247,7 +249,9 @@ export default function SchemesPage() {
                                     style={{ width: "100%", fontSize: 13, padding: "8px 10px", borderColor: "#cbd5e1" }}
                                 >
                                     {INDIAN_STATES_AND_UTS.map((st) => (
-                                        <option key={st} value={st}>{st}</option>
+                                        <option key={st} value={st}>
+                                            {t(`state.${st}`, st)}
+                                        </option>
                                     ))}
                                 </select>
                             </div>
@@ -255,13 +259,13 @@ export default function SchemesPage() {
                             {/* Level Filter */}
                             <div>
                                 <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12.5, fontWeight: 700, color: "#334155", marginBottom: 8 }}>
-                                    <Building size={14} color="#64748b" /> Scheme Level
+                                    <Building size={14} color="#64748b" /> {t("filters.level", "Scheme Level")}
                                 </label>
                                 <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6 }}>
                                     {[
-                                        { id: "all", label: "All" },
-                                        { id: "central", label: "Central" },
-                                        { id: "state", label: "State" }
+                                        { id: "all", label: t("filters.all", "All") },
+                                        { id: "central", label: t("filters.central", "Central") },
+                                        { id: "state", label: t("filters.state_level", "State") }
                                     ].map((lvl) => (
                                         <button
                                             key={lvl.id}
@@ -290,14 +294,14 @@ export default function SchemesPage() {
                             {/* Gender Filter */}
                             <div>
                                 <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12.5, fontWeight: 700, color: "#334155", marginBottom: 8 }}>
-                                    <Users size={14} color="#64748b" /> Beneficiary Gender
+                                    <Users size={14} color="#64748b" /> {t("filters.gender", "Beneficiary Gender")}
                                 </label>
                                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
                                     {[
-                                        { id: "all", label: "All Genders" },
-                                        { id: "female", label: "Women Only" },
-                                        { id: "male", label: "Men" },
-                                        { id: "transgender", label: "Transgender" }
+                                        { id: "all", label: t("filters.all_genders", "All Genders") },
+                                        { id: "female", label: t("filters.women_only", "Women Only") },
+                                        { id: "male", label: t("filters.men", "Men") },
+                                        { id: "transgender", label: t("filters.transgender", "Transgender") }
                                     ].map((g) => (
                                         <button
                                             key={g.id}
@@ -326,7 +330,7 @@ export default function SchemesPage() {
                             {/* Category Filter */}
                             <div>
                                 <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12.5, fontWeight: 700, color: "#334155", marginBottom: 10 }}>
-                                    <Layers size={14} color="#64748b" /> Categories
+                                    <Layers size={14} color="#64748b" /> {t("filters.categories", "Categories")}
                                 </label>
                                 <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 320, overflowY: "auto", paddingRight: 4 }}>
                                     <button
@@ -349,7 +353,7 @@ export default function SchemesPage() {
                                             textAlign: "left",
                                         }}
                                     >
-                                        <span>All Categories</span>
+                                        <span>{t("filters.all_categories", "All Categories")}</span>
                                         <span style={{ fontSize: 11, color: "#64748b", background: "#f1f5f9", padding: "1px 6px", borderRadius: 99 }}>
                                             {totalCount}
                                         </span>
@@ -358,6 +362,7 @@ export default function SchemesPage() {
                                     {categories.map((c) => {
                                         const count = c._count?.schemes ?? "";
                                         const isSelected = categoryId === c.id;
+                                        const localizedCatName = t(`category.${c.name}`, c.name);
                                         return (
                                             <button
                                                 key={c.id}
@@ -383,7 +388,7 @@ export default function SchemesPage() {
                                                 className="hover:bg-slate-50"
                                             >
                                                 <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginRight: 6 }}>
-                                                    {c.name}
+                                                    {localizedCatName}
                                                 </span>
                                                 {count !== "" && (
                                                     <span style={{ fontSize: 10.5, color: isSelected ? "#1d4ed8" : "#64748b", background: isSelected ? "#dbeafe" : "#f1f5f9", padding: "1px 6px", borderRadius: 99, flexShrink: 0 }}>
@@ -422,7 +427,7 @@ export default function SchemesPage() {
                                     <input
                                         type="text"
                                         className="input"
-                                        placeholder="Search 4,700+ schemes by keyword, ministry, benefit, or qualification…"
+                                        placeholder={t("filters.search_placeholder", "Search 4,700+ schemes by keyword, ministry, benefit, or qualification…")}
                                         value={search}
                                         onChange={(e) => setSearch(e.target.value)}
                                         style={{ paddingLeft: 42, paddingRight: search ? 36 : 14, height: 42, fontSize: 13.5, borderColor: "#cbd5e1" }}
@@ -449,18 +454,18 @@ export default function SchemesPage() {
                                 </div>
                                 <VoiceInputButton
                                     onTranscript={(transcript) => setSearch(transcript)}
-                                    placeholder="Search by voice..."
+                                    placeholder={t("filters.search_by_voice", "Search by voice...")}
                                 />
                             </div>
 
                             {/* Status Header */}
                             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 13, color: "#64748b" }}>
                                 <div>
-                                    Showing <strong style={{ color: "#0f2e5a" }}>{schemes.length}</strong> of <strong style={{ color: "#0f2e5a" }}>{totalCount.toLocaleString("en-IN")}</strong> schemes
-                                    {debouncedSearch && <span> for &ldquo;{debouncedSearch}&rdquo;</span>}
+                                    {t("pagination.showing", "Showing")} <strong style={{ color: "#0f2e5a" }}>{schemes.length}</strong> {t("pagination.of", "of")} <strong style={{ color: "#0f2e5a" }}>{totalCount.toLocaleString("en-IN")}</strong> {t("pagination.schemes", "schemes")}
+                                    {debouncedSearch && <span> {t("pagination.for", "for")} &ldquo;{debouncedSearch}&rdquo;</span>}
                                 </div>
                                 <div>
-                                    Page <strong>{page}</strong> of <strong>{totalPages}</strong>
+                                    {t("pagination.page", "Page")} <strong>{page}</strong> {t("pagination.of", "of")} <strong>{totalPages}</strong>
                                 </div>
                             </div>
                         </div>
@@ -480,9 +485,11 @@ export default function SchemesPage() {
                                 color: "#64748b"
                             }}>
                                 <Search size={44} style={{ margin: "0 auto 12px", opacity: 0.3 }} />
-                                <h3 style={{ fontSize: 17, fontWeight: 700, color: "#0f2e5a", marginBottom: 6 }}>No matching schemes found</h3>
+                                <h3 style={{ fontSize: 17, fontWeight: 700, color: "#0f2e5a", marginBottom: 6 }}>
+                                    {t("filters.no_schemes_found", "No matching schemes found")}
+                                </h3>
                                 <p style={{ fontSize: 13.5, maxWidth: 400, margin: "0 auto 16px" }}>
-                                    Try adjusting your search terms, changing the state filter, or clearing your selected category.
+                                    {t("filters.no_schemes_desc", "Try adjusting your search terms, changing the state filter, or clearing your selected category.")}
                                 </p>
                                 <button
                                     onClick={resetFilters}
@@ -497,7 +504,7 @@ export default function SchemesPage() {
                                         cursor: "pointer"
                                     }}
                                 >
-                                    Reset All Filters
+                                    {t("filters.reset_all", "Reset All Filters")}
                                 </button>
                             </div>
                         ) : (
@@ -549,7 +556,7 @@ export default function SchemesPage() {
                                         cursor: page === 1 ? "not-allowed" : "pointer"
                                     }}
                                 >
-                                    <ChevronLeft size={14} /> Previous
+                                    <ChevronLeft size={14} /> {t("pagination.prev", "Previous")}
                                 </button>
 
                                 <div style={{ display: "flex", alignItems: "center", gap: 4, margin: "0 8px" }}>
@@ -605,7 +612,7 @@ export default function SchemesPage() {
                                         cursor: page === totalPages ? "not-allowed" : "pointer"
                                     }}
                                 >
-                                    Next <ChevronRight size={14} />
+                                    {t("pagination.next", "Next")} <ChevronRight size={14} />
                                 </button>
                             </div>
                         )}

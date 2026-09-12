@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Bot, X, Send, Mic, Sparkles, MoveUpRight, RefreshCw, ChevronDown, Zap } from "lucide-react";
 import Link from "next/link";
 import toast from "react-hot-toast";
+import { useLanguage } from "@/components/providers/LanguageProvider";
 
 interface ChatMessage {
     id: string;
@@ -121,6 +122,7 @@ function parseMessageContent(content: string, sources: any[]) {
 }
 
 export default function ChatWidget() {
+    const { language, t } = useLanguage();
     const [isOpen, setIsOpen] = useState(false);
     const [isExpanded, setIsExpanded] = useState(false);
     const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -195,7 +197,7 @@ export default function ChatWidget() {
             const res = await fetch("/api/chat", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ messages: allMessages.map(m => ({ role: m.role, content: m.content })), language: "en" }),
+                body: JSON.stringify({ messages: allMessages.map(m => ({ role: m.role, content: m.content })), language }),
                 signal: abortRef.current.signal,
             });
             if (!res.ok) {
@@ -420,13 +422,13 @@ export default function ChatWidget() {
                                                 animate={{ height: ["8px", "24px", "8px"] }}
                                                 transition={{ duration: 0.5, repeat: Infinity, delay: i * 0.08 }} />
                                         ))}
-                                        <span style={{ fontSize: 12, color: "#ef4444", fontWeight: 700, marginLeft: 8 }}>Listening...</span>
+                                        <span style={{ fontSize: 12, color: "#ef4444", fontWeight: 700, marginLeft: 8 }}>{t("chat.listening", "Listening...")}</span>
                                     </div>
                                 ) : (
                                     <textarea
                                         ref={textareaRef}
                                         style={{ flex: 1, background: "transparent", border: "none", outline: "none", resize: "none", fontSize: 13.5, fontFamily: "Sora, sans-serif", color: "#0f172a", lineHeight: 1.5, minHeight: 36, maxHeight: 100, padding: "4px 0" }}
-                                        placeholder="Ask about government schemes..."
+                                        placeholder={t("chat.placeholder", "Ask about government schemes...")}
                                         value={input}
                                         rows={1}
                                         onChange={e => setInput(e.target.value)}

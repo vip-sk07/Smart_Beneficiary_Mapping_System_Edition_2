@@ -125,7 +125,7 @@ export default function Sidebar({
 
             {/* Nav */}
             <nav style={{ padding: "12px 10px 0", flex: 1, overflowY: "auto" }}>
-                <div className="section-label" style={{ paddingLeft: 6, marginBottom: 8 }}>{isAdmin ? "My Account" : "Navigation"}</div>
+                <div className="section-label" style={{ paddingLeft: 6, marginBottom: 8 }}>{isAdmin ? t("nav.my_account", "My Account") : t("nav.navigation", "Navigation")}</div>
 
                 {visibleUserNavItems.map(({ href, label, icon: Icon, color, isNew }) => {
                     const active = isActive(href);
@@ -201,17 +201,21 @@ export default function Sidebar({
                 {/* Admin */}
                 {userRole === "ADMIN" && (
                     <>
-                        <div className="section-label" style={{ paddingLeft: 6, marginTop: 16, marginBottom: 8 }}>Admin Panel</div>
-                        {adminNavItems.map(({ href, label, icon: Icon, color }) => (
-                            <Link key={href} href={href} onClick={onClose}
-                                className={`nav-item ${isActive(href) ? "active" : ""}`}
-                                style={{ marginBottom: 2 }}>
-                                <div style={{ width: 30, height: 30, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", background: isActive(href) ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.05)", color: isActive(href) ? "white" : color, transition: "all 0.15s ease" }}>
-                                    <Icon size={15} />
-                                </div>
-                                <span style={{ fontSize: 13.5 }}>{label}</span>
-                            </Link>
-                        ))}
+                        <div className="section-label" style={{ paddingLeft: 6, marginTop: 16, marginBottom: 8 }}>{t("nav.admin_panel", "Admin Panel")}</div>
+                        {adminNavItems.map(({ href, label, icon: Icon, color }) => {
+                            const adminKey = href.replace("/admin/", "");
+                            const transKey = adminKey === "schemes" ? "manage_schemes" : adminKey === "applications" ? "manage_applications" : adminKey === "grievances" ? "manage_grievances" : adminKey;
+                            return (
+                                <Link key={href} href={href} onClick={onClose}
+                                    className={`nav-item ${isActive(href) ? "active" : ""}`}
+                                    style={{ marginBottom: 2 }}>
+                                    <div style={{ width: 30, height: 30, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", background: isActive(href) ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.05)", color: isActive(href) ? "white" : color, transition: "all 0.15s ease" }}>
+                                        <Icon size={15} />
+                                    </div>
+                                    <span style={{ fontSize: 13.5 }}>{t(`nav.${transKey}`, label)}</span>
+                                </Link>
+                            );
+                        })}
                     </>
                 )}
             </nav>
@@ -226,20 +230,22 @@ export default function Sidebar({
                         onChange={(e) => setLanguage(e.target.value as any)}
                         style={{
                             fontSize: 12, fontWeight: 600,
-                            color: "rgba(255,255,255,0.5)",
+                            color: "rgba(255,255,255,0.7)",
                             background: "transparent", border: "none", outline: "none",
                             cursor: "pointer", width: "100%",
                         }}
                     >
                         <option value="en" style={{ color: "#111" }}>English</option>
                         <option value="hi" style={{ color: "#111" }}>हिंदी (Hindi)</option>
+                        <option value="ta" style={{ color: "#111" }}>தமிழ் (Tamil)</option>
+                        <option value="te" style={{ color: "#111" }}>తెలుగు (Telugu)</option>
                         <option value="mr" style={{ color: "#111" }}>मराठी (Marathi)</option>
                     </select>
                 </div>
 
                 {/* Account label */}
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, padding: "0 4px" }}>
-                    <span style={{ fontSize: 10, fontWeight: 800, color: "rgba(255,255,255,0.25)", letterSpacing: "0.1em", textTransform: "uppercase" }}>Account</span>
+                    <span style={{ fontSize: 10, fontWeight: 800, color: "rgba(255,255,255,0.25)", letterSpacing: "0.1em", textTransform: "uppercase" }}>{t("nav.my_account", "Account")}</span>
                     <NotificationBell />
                 </div>
 
@@ -285,7 +291,7 @@ export default function Sidebar({
                     <div style={{ width: 30, height: 30, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(248,113,113,0.1)" }}>
                         <LogOut size={14} />
                     </div>
-                    Sign Out
+                    {t("nav.sign_out", "Sign Out")}
                 </button>
             </div>
         </aside>

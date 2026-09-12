@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import type { SchemeWithCategory } from "@/types";
-import { ArrowRight, CheckCircle, ExternalLink, Building2 } from "lucide-react";
+import { ArrowRight, ExternalLink, Building2 } from "lucide-react";
 import EligibilityBadge from "./EligibilityBadge";
 import AudioReadButton from "@/components/voice/AudioReadButton";
 import SendSchemeToWhatsApp from "@/components/whatsapp/SendSchemeToWhatsApp";
 import { motion } from "framer-motion";
+import { useLanguage } from "@/components/providers/LanguageProvider";
 
 interface SchemeCardProps {
     scheme: SchemeWithCategory;
@@ -15,6 +16,7 @@ interface SchemeCardProps {
 }
 
 export default function SchemeCard({ scheme, applied = false, eligibilityStatus }: SchemeCardProps) {
+    const { t } = useLanguage();
     const isCentral = scheme.description?.toLowerCase().includes("level:** central") ?? false;
     
     // Extract ministry if available
@@ -28,7 +30,8 @@ export default function SchemeCard({ scheme, applied = false, eligibilityStatus 
         ? scheme.description.replace(/\*\*[^*]+\*\*/g, "").replace(/•/g, "").slice(0, 140).trim() + "…"
         : scheme.benefits.slice(0, 140) + "…";
 
-    const catColor = scheme.category?.color ?? "#1e40af";
+    const categoryName = scheme.category?.name || "General";
+    const localizedCategory = t(`category.${categoryName}`, categoryName);
 
     return (
         <motion.div
@@ -71,7 +74,7 @@ export default function SchemeCard({ scheme, applied = false, eligibilityStatus 
                     fontSize: 10,
                     fontWeight: 700
                 }}>
-                    {isCentral ? "Central Govt" : "State Welfare"}
+                    {isCentral ? t("card.central_govt", "Central Govt") : t("card.state_welfare", "State Welfare")}
                 </span>
 
                 <span style={{
@@ -86,7 +89,7 @@ export default function SchemeCard({ scheme, applied = false, eligibilityStatus 
                     overflow: "hidden",
                     textOverflow: "ellipsis"
                 }}>
-                    {scheme.category?.name || "General"}
+                    {localizedCategory}
                 </span>
             </div>
 
@@ -168,7 +171,7 @@ export default function SchemeCard({ scheme, applied = false, eligibilityStatus 
                         }}
                         className="hover:bg-blue-900"
                     >
-                        View Details <ArrowRight size={13} />
+                        {t("card.view_details", "View Details")} <ArrowRight size={13} />
                     </Link>
 
                     {scheme.applyLink && (
@@ -194,7 +197,7 @@ export default function SchemeCard({ scheme, applied = false, eligibilityStatus 
                             className="hover:bg-slate-100 hover:border-slate-400"
                             title="Open Official Portal"
                         >
-                            Portal <ExternalLink size={12} />
+                            {t("card.portal", "Portal")} <ExternalLink size={12} />
                         </a>
                     )}
                 </div>
