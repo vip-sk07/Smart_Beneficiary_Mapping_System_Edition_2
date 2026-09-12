@@ -27,23 +27,18 @@ function createPrismaClient() {
     throw new Error("DATABASE_URL is not set in environment.");
   }
 
-  // If local PostgreSQL
-  if (connectionString.includes("localhost") || connectionString.includes("127.0.0.1")) {
-    const { PrismaPg } = require("@prisma/adapter-pg");
-    const { Pool } = require("pg");
-    const pool = new Pool({ connectionString });
-    const adapter = new PrismaPg(pool);
-    return new PrismaClient({ adapter });
-  }
+  const { PrismaPg } = require("@prisma/adapter-pg");
+  const { Pool } = require("pg");
 
-  // If cloud Neon PostgreSQL
-  const { PrismaNeon } = require("@prisma/adapter-neon");
-  const { Pool, neonConfig } = require("@neondatabase/serverless");
-  const ws = require("ws");
-  neonConfig.webSocketConstructor = ws;
-  
-  const pool = new Pool({ connectionString });
-  const adapter = new PrismaNeon(pool);
+  const isCloud = !connectionString.includes("localhost") && !connectionString.includes("127.0.0.1");
+  const pool = new Pool({
+    connectionString,
+    ssl: isCloud ? { rejectUnauthorized: false } : false,
+    max: 10,
+    idleTimeoutMillis: 30000,
+  });
+
+  const adapter = new PrismaPg(pool);
   return new PrismaClient({ adapter });
 }
 
