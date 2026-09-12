@@ -1,4 +1,5 @@
 import type { NextAuthConfig } from "next-auth";
+import Google from "next-auth/providers/google";
 import { NextResponse } from "next/server";
 
 export const authConfig = {
@@ -7,6 +8,13 @@ export const authConfig = {
         signIn: "/login",
         error: "/login",
     },
+    providers: [
+        Google({
+            clientId: process.env.GOOGLE_CLIENT_ID || process.env.AUTH_GOOGLE_ID,
+            clientSecret: process.env.GOOGLE_CLIENT_SECRET || process.env.AUTH_GOOGLE_SECRET,
+            allowDangerousEmailAccountLinking: true,
+        }),
+    ],
     callbacks: {
         authorized({ auth, request: { nextUrl } }) {
             const isLoggedIn = !!auth?.user;
@@ -54,5 +62,4 @@ export const authConfig = {
             return session;
         },
     },
-    providers: [], // Configured with full providers in auth.ts (Node.js runtime)
 } satisfies NextAuthConfig;
