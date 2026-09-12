@@ -1,0 +1,25 @@
+# ==============================================================================
+# 🐳 SBMS Dedicated Cloud Ollama Engine
+# Deployable to: Hugging Face Spaces (Free 16GB Docker), Oracle Cloud Free Tier (24GB VPS), or Render
+# ==============================================================================
+
+FROM ollama/ollama:latest
+
+# Configure Ollama environment
+ENV OLLAMA_HOST=0.0.0.0:11434
+ENV OLLAMA_ORIGINS=*
+ENV OLLAMA_NUM_PARALLEL=4
+ENV OLLAMA_MAX_LOADED_MODELS=2
+
+# Pre-bake models directly into Docker image during build
+RUN ollama serve & \
+    sleep 6 && \
+    ollama pull qwen2.5-coder:3b && \
+    ollama pull qwen2.5vl:3b
+
+# Expose standard API port
+EXPOSE 11434
+EXPOSE 7860
+
+# Launch Ollama Daemon
+CMD ["ollama", "serve"]

@@ -3,7 +3,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { embedText } from "@/lib/embeddings";
 import { searchSimilarSchemes } from "@/lib/rag";
-import { streamOllama, OLLAMA_CHAT_MODEL } from "@/lib/ollama";
+import { streamAICascade, AIMessage } from "@/lib/ai-router";
 import { rateLimitChat } from "@/lib/rateLimit";
 
 const SYSTEM_PROMPT = `You are SBMS Assistant, the AI assistant for the Smart Beneficiary Mapping System (SBMS) — a platform that helps Indian citizens discover and apply for government welfare schemes.
@@ -110,9 +110,9 @@ Based on this user's profile, give personalized scheme recommendations.
 
         const dynamicSystemPrompt = `${SYSTEM_PROMPT}\n\nIMPORTANT: You MUST ONLY respond to the user in ${targetLanguage}. Do not use English unless the user requests it. Translate scheme details into ${targetLanguage}.\n\n${profileContext}\n\n${ragContext}`;
 
-        // Step 4: Stream response from local Ollama (llama3)
-        const ollamaMessages = [
-            { role: "system" as const, content: dynamicSystemPrompt },
+        // Step 4: Stream response through High-Availability AI Cascade Router
+        const aiMessages: AIMessage[] = [
+            { role: "system", content: dynamicSystemPrompt },
             ...messages.map((m: any) => ({
                 role: m.role as "user" | "assistant",
                 content: typeof m.content === "string" ? m.content : String(m.content || ""),
@@ -131,7 +131,7 @@ Based on this user's profile, give personalized scheme recommendations.
         const stream = new ReadableStream({
             async start(controller) {
                 try {
-                    for await (const chunk of streamOllama(ollamaMessages, OLLAMA_CHAT_MODEL, 0.7)) {
+                    for await (const { chunk } of streamAICascade(aiMessages, { temperature: 0.7 })) {
                         fullText += chunk;
                         controller.enqueue(new TextEncoder().encode(chunk));
                     }

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { embedText } from "@/lib/embeddings";
 import { searchSimilarSchemes } from "@/lib/rag";
-import { callOllama, OLLAMA_FINDER_MODEL } from "@/lib/ollama";
+import { callAICascade } from "@/lib/ai-router";
 
 export async function POST(req: NextRequest) {
     try {
@@ -75,15 +75,14 @@ user situation: '${query}'
 Available Schemes:
 ${schemesList}`;
 
-        // 4. Send to local Ollama (qwen2.5-coder:7b is excellent at structured JSON)
-        const content = await callOllama(
+        // 4. Send to High-Availability AI Cascade Router (Gemini -> Groq -> HuggingFace -> Ollama)
+        const { text: content } = await callAICascade(
             [{ role: "user", content: systemPrompt }],
-            OLLAMA_FINDER_MODEL,
-            { format: "json", temperature: 0.1, num_predict: 1500 }
+            { format: "json", temperature: 0.1, maxTokens: 1500 }
         );
 
         if (!content) {
-            throw new Error("No response from Ollama");
+            throw new Error("No response from AI Cascade Router");
         }
 
         let parsedResponse;
