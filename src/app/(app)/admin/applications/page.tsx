@@ -185,7 +185,7 @@ export default function AdminApplicationsPage() {
                         </tr>
                     </thead>
                     <tbody>
-                        {loading && Array.from({ length: 5 }).map((_, i) => <SkeletonTableRow key={i} columns={5} />)}
+                        {loading && Array.from({ length: 5 }).map((_, i) => <SkeletonTableRow key={i} cols={5} />)}
                         {!loading && filtered.map(app => (
                             <tr key={app.id}>
                                 <td>

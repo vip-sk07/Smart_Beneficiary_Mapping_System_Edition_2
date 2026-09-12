@@ -458,7 +458,7 @@ export default function DocumentVaultPage() {
                                     <div>
                                         {isUploaded && matchingDoc ? (
                                             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: 10, borderTop: "1px solid #f1f5f9" }}>
-                                                <span style={{ fontSize: 12, color: "#64748b", fontWeight: 500, truncate: true, maxWidth: 180 }}>
+                                                <span style={{ fontSize: 12, color: "#64748b", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 180 }}>
                                                     📄 {matchingDoc.name}
                                                 </span>
                                                 <div style={{ display: "flex", gap: 6 }}>

@@ -12,7 +12,7 @@ const HEADERS = {
 };
 
 // Helper: Convert Slate / Rich-Text JSON to clean, human-readable plain text
-function extractText(contentArray: any[]): string {
+function extractText(contentArray: any): string {
   if (!contentArray) return "";
   if (typeof contentArray === "string") return contentArray.trim();
   if (!Array.isArray(contentArray)) return "";

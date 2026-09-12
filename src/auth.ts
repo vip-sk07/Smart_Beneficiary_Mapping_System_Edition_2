@@ -7,14 +7,13 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { rateLimit } from "@/lib/rateLimit";
 
+import { authConfig } from "@/auth.config";
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
+    ...authConfig,
     adapter: PrismaAdapter(prisma),
     session: { strategy: "jwt" },
     secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || "fallback_secret_sbms_2026",
-    pages: {
-        signIn: "/login",
-        error: "/login",
-    },
     providers: [
         ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
             ? [
@@ -39,8 +38,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
                 const rateLimitResult = await rateLimit(`login:${clientIP}`, 10, 600);
                 if (!rateLimitResult.success) {
-                    // Note: Cannot throw error here as it won't be caught properly
-                    // Rate limiting is better handled at the API level
                     console.warn(`Rate limit exceeded for IP: ${clientIP}`);
                 }
 
@@ -68,20 +65,4 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             },
         }),
     ],
-    callbacks: {
-        async jwt({ token, user }) {
-            if (user) {
-                token.id = user.id;
-                token.role = (user as { role?: string }).role ?? "USER";
-            }
-            return token;
-        },
-        async session({ session, token }) {
-            if (session.user) {
-                session.user.id = token.id as string;
-                session.user.role = token.role as string;
-            }
-            return session;
-        },
-    },
 });

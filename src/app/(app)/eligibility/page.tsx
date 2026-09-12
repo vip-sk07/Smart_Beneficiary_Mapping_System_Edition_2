@@ -185,7 +185,7 @@ export default function EligibilityPage() {
             ) : (
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 20 }}>
                     <AnimatePresence mode="popLayout">
-                        {currentList.map((scheme, i) => {
+                        {currentList.map((scheme: any, i: number) => {
                             const statusConfig = activeTab === "eligible"
                                 ? { label: "Eligible & Verified ✓", bg: "#f0fdf4", color: "#16a34a", border: "#86efac" }
                                 : activeTab === "docsPending"

@@ -12,7 +12,7 @@ export interface AutomatedNotificationPayload {
     schemeTitle: string;
     schemeBenefit?: string;
     portalLink?: string;
-    triggerReason: "DOCUMENT_VERIFIED" | "PROFILE_COMPLETED" | "APPLICATION_APPROVED" | "NEW_SCHEME_MATCH";
+    triggerReason: "DOCUMENT_VERIFIED" | "PROFILE_COMPLETED" | "APPLICATION_APPROVED" | "NEW_SCHEME_MATCH" | "TEST_GATEWAY" | "INITIAL_ALERT";
 }
 
 export interface DispatchResult {
@@ -84,3 +84,31 @@ export async function sendAutomatedCitizenAlert(payload: AutomatedNotificationPa
         contentSnippet: messageBody
     };
 }
+
+/**
+ * Creates an in-app citizen notification record in the database
+ */
+export async function createNotification(
+    userId: string,
+    title: string,
+    message: string,
+    type: string = "general",
+    link?: string
+) {
+    try {
+        return await prisma.notification.create({
+            data: {
+                userId,
+                title,
+                message,
+                type,
+                link,
+                isRead: false,
+            },
+        });
+    } catch (err) {
+        console.error("Failed to create in-app notification:", err);
+        return null;
+    }
+}
+
