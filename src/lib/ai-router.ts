@@ -42,20 +42,10 @@ function getCacheKey(messages: AIMessage[], options?: AIOptions): string {
     return `${options?.format || "text"}:${lastMsg.trim().toLowerCase()}`;
 }
 
-// 🟢 Tier 2: Google Gemini 1.5 Flash Provider
+// 🟢 Tier 2: Google Gemini Flash Provider (Direct High-Speed REST)
 async function callGemini(messages: AIMessage[], options?: AIOptions): Promise<string> {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) throw new Error("GEMINI_API_KEY not configured");
-
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({
-        model: "gemini-1.5-flash",
-        generationConfig: {
-            temperature: options?.temperature ?? 0.7,
-            maxOutputTokens: options?.maxTokens ?? 1000,
-            ...(options?.format === "json" && { responseMimeType: "application/json" }),
-        },
-    });
 
     const systemMsg = messages.find(m => m.role === "system")?.content || "";
     const conversation = messages
@@ -64,36 +54,55 @@ async function callGemini(messages: AIMessage[], options?: AIOptions): Promise<s
         .join("\n\n");
 
     const fullPrompt = systemMsg ? `${systemMsg}\n\n${conversation}` : conversation;
-    const result = await model.generateContent(fullPrompt);
-    const text = result.response.text();
-    if (!text) throw new Error("Empty response from Gemini");
-    return text;
+
+    const candidateModels = ["gemini-flash-latest", "gemini-2.5-flash-lite", "gemini-3.5-flash", "gemini-pro-latest"];
+    let lastError = "";
+
+    for (const modelName of candidateModels) {
+        try {
+            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "x-goog-api-key": apiKey,
+                },
+                body: JSON.stringify({
+                    contents: [{
+                        parts: [{ text: fullPrompt }]
+                    }],
+                    generationConfig: {
+                        temperature: options?.temperature ?? 0.7,
+                        maxOutputTokens: options?.maxTokens ?? 1000,
+                        ...(options?.format === "json" && { responseMimeType: "application/json" }),
+                    }
+                })
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+                if (text) return text;
+            } else {
+                const err = await res.text();
+                lastError = `${modelName} returned ${res.status}: ${err}`;
+            }
+        } catch (e: any) {
+            lastError = e.message;
+        }
+    }
+
+    throw new Error(`All Gemini candidate models busy: ${lastError}`);
 }
 
 async function* streamGemini(messages: AIMessage[], options?: AIOptions): AsyncGenerator<string> {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) throw new Error("GEMINI_API_KEY not configured");
 
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({
-        model: "gemini-1.5-flash",
-        generationConfig: {
-            temperature: options?.temperature ?? 0.7,
-            maxOutputTokens: options?.maxTokens ?? 1000,
-        },
-    });
-
-    const systemMsg = messages.find(m => m.role === "system")?.content || "";
-    const conversation = messages
-        .filter(m => m.role !== "system")
-        .map(m => `${m.role === "user" ? "Citizen" : "Assistant"}: ${m.content}`)
-        .join("\n\n");
-
-    const fullPrompt = systemMsg ? `${systemMsg}\n\n${conversation}` : conversation;
-    const result = await model.generateContentStream(fullPrompt);
-
-    for await (const chunk of result.stream) {
-        yield chunk.text();
+    // Fetch complete response and yield words with smooth streaming cadence
+    const fullText = await callGemini(messages, options);
+    const words = fullText.split(" ");
+    for (let i = 0; i < words.length; i++) {
+        yield words[i] + (i === words.length - 1 ? "" : " ");
     }
 }
 
