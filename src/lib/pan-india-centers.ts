@@ -254,18 +254,32 @@ export async function searchPanIndia(
             targetCenters = primaryCenters.filter(c => c.pincode === q);
         }
     } else {
-        // 2. TALUK / DISTRICT / CITY LOOKUP
+        // 2. TALUK / DISTRICT / CITY LOOKUP WITH RELEVANCE SCORING
         const cleanQuery = q.replace(/[^a-zA-Z0-9\s]/g, "").trim();
 
-        // Exact or substring matches across Taluk, District, or Office Name
-        targetCenters = primaryCenters.filter(c => {
+        function getRelevanceScore(c: RawCenter): number {
             const t = (c.taluk || "").toLowerCase();
             const d = (c.district || "").toLowerCase();
             const n = (c.name || "").toLowerCase();
-            return t.includes(cleanQuery) || d.includes(cleanQuery) || n.includes(cleanQuery);
-        });
 
-        // Filter by state if specified or prioritize matches
+            if (t === cleanQuery) return 100;
+            if (d === cleanQuery) return 90;
+            if (t.startsWith(cleanQuery)) return 70;
+            if (d.startsWith(cleanQuery)) return 60;
+            if (n.startsWith(cleanQuery)) return 50;
+            if (t.includes(cleanQuery)) return 40;
+            if (d.includes(cleanQuery)) return 30;
+            if (n.includes(cleanQuery)) return 20;
+            return 0;
+        }
+
+        const scored = primaryCenters
+            .map(c => ({ c, s: getRelevanceScore(c) }))
+            .filter(item => item.s > 0)
+            .sort((a, b) => b.s - a.s);
+
+        targetCenters = scored.map(item => item.c);
+
         if (targetCenters.length > 0) {
             const first = targetCenters[0];
             detectedState = first.state.toUpperCase();
