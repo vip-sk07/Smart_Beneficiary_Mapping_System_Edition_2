@@ -98,14 +98,13 @@ export function GrievancesAnimate({ children }: { children: ReactNode }) {
     );
 }
 
-// ── Documents: flip-in from top ────────────────────────────────────
+// ── Documents: smooth fade-in from top ────────────────────────────
 export function DocumentsAnimate({ children }: { children: ReactNode }) {
     return (
         <motion.div
-            initial={{ opacity: 0, rotateX: 8, y: -12 }}
-            animate={{ opacity: 1, rotateX: 0, y: 0 }}
-            transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-            style={{ perspective: 800 }}
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, ease: "easeOut" }}
         >
             {children}
         </motion.div>

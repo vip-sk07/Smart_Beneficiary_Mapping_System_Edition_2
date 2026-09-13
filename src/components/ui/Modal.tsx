@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
 interface ModalProps {
@@ -12,7 +13,12 @@ interface ModalProps {
 }
 
 export default function Modal({ isOpen, onClose, title, children, maxWidth = 520 }: ModalProps) {
+    const [mounted, setMounted] = useState(false);
     const backdropRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     // Close on Escape key
     useEffect(() => {
@@ -25,13 +31,17 @@ export default function Modal({ isOpen, onClose, title, children, maxWidth = 520
 
     // Prevent body scroll when modal open
     useEffect(() => {
-        document.body.style.overflow = isOpen ? "hidden" : "";
+        if (isOpen) {
+            document.body.style.overflow = "hidden";
+        } else {
+            document.body.style.overflow = "";
+        }
         return () => { document.body.style.overflow = ""; };
     }, [isOpen]);
 
-    if (!isOpen) return null;
+    if (!isOpen || !mounted) return null;
 
-    return (
+    return createPortal(
         <div
             ref={backdropRef}
             className="modal-backdrop"
@@ -42,18 +52,27 @@ export default function Modal({ isOpen, onClose, title, children, maxWidth = 520
             aria-modal="true"
             aria-labelledby="modal-title"
         >
-            <div className="modal-box" style={{ maxWidth }}>
+            <div
+                className="modal-box"
+                style={{
+                    maxWidth,
+                    maxHeight: "88vh",
+                    display: "flex",
+                    flexDirection: "column",
+                }}
+            >
                 {/* Header */}
                 <div
                     style={{
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "space-between",
-                        padding: "20px 24px 16px",
-                        borderBottom: "1px solid #f3f4f6",
+                        padding: "18px 24px 16px",
+                        borderBottom: "1px solid #f1f5f9",
+                        flexShrink: 0,
                     }}
                 >
-                    <h2 id="modal-title" style={{ fontSize: 17, fontWeight: 700, color: "#111827" }}>
+                    <h2 id="modal-title" style={{ fontSize: 17, fontWeight: 700, color: "#0f172a", margin: 0 }}>
                         {title}
                     </h2>
                     <button
@@ -66,11 +85,11 @@ export default function Modal({ isOpen, onClose, title, children, maxWidth = 520
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
-                            background: "#f9fafb",
+                            background: "#f1f5f9",
                             border: "none",
                             borderRadius: 8,
                             cursor: "pointer",
-                            color: "#6b7280",
+                            color: "#64748b",
                             transition: "background 0.15s",
                         }}
                     >
@@ -78,8 +97,9 @@ export default function Modal({ isOpen, onClose, title, children, maxWidth = 520
                     </button>
                 </div>
                 {/* Body */}
-                <div style={{ padding: "20px 24px 24px" }}>{children}</div>
+                <div style={{ padding: "20px 24px 24px", overflowY: "auto", flexGrow: 1 }}>{children}</div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 }

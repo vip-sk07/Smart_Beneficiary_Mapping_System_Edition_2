@@ -91,9 +91,7 @@ export default function Sidebar({
         href === "/dashboard" ? pathname === href : pathname.startsWith(href);
 
     const isAdmin = userRole === "ADMIN";
-    // Admin users: only show Announcements and Edit Profile from user nav
-    // Everything else is covered by the dedicated admin panel
-    const ADMIN_ALLOWED = ["/announcements", "/profile", "/ai-finder", "/chat", "/schemes"];
+    const ADMIN_ALLOWED = ["/dashboard", "/schemes", "/ai-finder", "/documents", "/eligibility", "/applications", "/chat", "/announcements", "/profile"];
     const visibleUserNavItems = isAdmin
         ? userNavItems.filter(item => ADMIN_ALLOWED.includes(item.href))
         : userNavItems;
