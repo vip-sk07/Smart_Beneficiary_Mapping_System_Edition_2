@@ -46,7 +46,7 @@ export default async function SchemeDetailPage({
         }),
         prisma.application.findUnique({
             where: { userId_schemeId: { userId: session.user.id, schemeId: id } },
-            select: { id: true, status: true },
+            select: { id: true, status: true, externalApplicationId: true, externalPortal: true },
         }),
         (prisma as any).user.findUnique({
             where: { id: session.user.id },
@@ -255,21 +255,42 @@ export default async function SchemeDetailPage({
                     />
 
                     {existingApplication ? (
-                        <div
-                            style={{
-                                display: "inline-flex",
-                                alignItems: "center",
-                                gap: 6,
-                                padding: "10px 18px",
-                                borderRadius: 8,
-                                background: "#f0fdf4",
-                                border: "1.5px solid #86efac",
-                                color: "#15803d",
-                                fontSize: 13.5,
-                                fontWeight: 700,
-                            }}
-                        >
-                            <CheckCircle2 size={16} /> Tracking — Status: {existingApplication.status.replace("_", " ")}
+                        <div style={{ display: "inline-flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                            <div
+                                style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: 6,
+                                    padding: "10px 18px",
+                                    borderRadius: 8,
+                                    background: "#f0fdf4",
+                                    border: "1.5px solid #86efac",
+                                    color: "#15803d",
+                                    fontSize: 13.5,
+                                    fontWeight: 700,
+                                }}
+                            >
+                                <CheckCircle2 size={16} /> 
+                                <span>Tracking: {existingApplication.externalApplicationId || existingApplication.status.replace("_", " ")}</span>
+                            </div>
+                            <Link
+                                href="/applications"
+                                style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: 4,
+                                    padding: "10px 14px",
+                                    borderRadius: 8,
+                                    background: "#eff6ff",
+                                    color: "#1d4ed8",
+                                    fontSize: 13,
+                                    fontWeight: 700,
+                                    textDecoration: "none",
+                                    border: "1px solid #bfdbfe",
+                                }}
+                            >
+                                Track in Applications →
+                            </Link>
                         </div>
                     ) : (
                         <ApplyButton schemeId={scheme.id} schemeTitle={scheme.title} userId={session.user.id} />
