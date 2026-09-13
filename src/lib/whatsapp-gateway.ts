@@ -204,9 +204,27 @@ function startIPCServer() {
         const reqUrl = req.url || "/";
         const parsedUrl = new URL(reqUrl, "http://localhost");
 
-        // 1. Health API check
-        if (req.method === "GET" && parsedUrl.pathname === "/health") {
-            res.writeHead(200, { "Content-Type": "application/json" });
+        // Handle OPTIONS (CORS preflight)
+        if (req.method === "OPTIONS") {
+            res.writeHead(200, {
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "GET, HEAD, POST, OPTIONS",
+                "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            });
+            res.end();
+            return;
+        }
+
+        // 1. Health & Uptime API check (supports GET and HEAD for UptimeRobot)
+        if ((req.method === "GET" || req.method === "HEAD") && (parsedUrl.pathname === "/health" || parsedUrl.pathname === "/api/health")) {
+            res.writeHead(200, {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": "*",
+            });
+            if (req.method === "HEAD") {
+                res.end();
+                return;
+            }
             res.end(JSON.stringify({ status: "ok", gateway: connectionStatus, service: "SBMS WhatsApp Gateway", timestamp: new Date().toISOString() }));
             return;
         }
