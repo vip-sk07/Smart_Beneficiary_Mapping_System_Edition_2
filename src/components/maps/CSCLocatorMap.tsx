@@ -21,6 +21,7 @@ import toast from "react-hot-toast";
 export interface RealGovCenter {
     id: string;
     name: string;
+    agency?: string;
     placeType: string;
     address: string;
     state: string;
@@ -32,7 +33,7 @@ export interface RealGovCenter {
     lat: number;
     lng: number;
     distanceKm?: number;
-    osmId: string;
+    osmId?: string;
 }
 
 export default function CSCLocatorMap() {
@@ -40,9 +41,9 @@ export default function CSCLocatorMap() {
     const [centers, setCenters] = useState<RealGovCenter[]>([]);
     const [selectedCenter, setSelectedCenter] = useState<RealGovCenter | null>(null);
     const [loading, setLoading] = useState(true);
-    const [currentLocationName, setCurrentLocationName] = useState("Virudhunagar / Sivakasi");
+    const [currentLocationName, setCurrentLocationName] = useState("Sattur, Virudhunagar");
 
-    // Fetch real OSM centers via our backend API route
+    // Fetch verified government centers via our backend API route
     const searchCenters = async (queryText: string, userLat?: number, userLng?: number) => {
         setLoading(true);
         try {
@@ -58,52 +59,36 @@ export default function CSCLocatorMap() {
                     setCenters(data.centers);
                     setSelectedCenter(data.centers[0]);
                     setCurrentLocationName(data.query || queryText);
-                    toast.success(`📍 Found ${data.centers.length} authentic government centers in ${data.query || queryText}!`);
+                    toast.success(`📍 Found ${data.centers.length} verified government centers in ${data.query || queryText}!`);
                 } else {
-                    toast.error(`No authentic centers found for "${queryText}".`);
+                    toast.error(`No centers found for "${queryText}". Try a Pincode or Taluk name.`);
                 }
             } else {
-                toast.error("Failed to query OpenStreetMap GIS API.");
+                toast.error("Failed to query government directory.");
             }
         } catch (err) {
             console.error("Fetch Centers Error:", err);
-            toast.error("Network error connecting to OpenStreetMap.");
+            toast.error("Network error connecting to directory.");
         } finally {
             setLoading(false);
         }
     };
 
-    // Initial Load: Attempt Live User Geolocation First, Fallback to Registered Citizen Profile
+    // Initial Load: Default to Sattur / Virudhunagar or Profile District
     useEffect(() => {
         let isCancelled = false;
 
         const initLocation = async () => {
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(
-                    (pos) => {
-                        if (!isCancelled) {
-                            const { latitude, longitude } = pos.coords;
-                            searchCenters("", latitude, longitude);
-                        }
-                    },
-                    async () => {
-                        // If browser GPS is denied/prompted, fetch citizen's registered profile district/state
-                        try {
-                            const res = await fetch("/api/profile");
-                            if (res.ok) {
-                                const data = await res.json();
-                                const district = data.user?.address || data.user?.state || "Tamil Nadu";
-                                if (!isCancelled) searchCenters(district);
-                                return;
-                            }
-                        } catch {}
-                        if (!isCancelled) searchCenters("Chennai");
-                    },
-                    { enableHighAccuracy: true, timeout: 6000, maximumAge: 60000 }
-                );
-            } else {
-                searchCenters("Chennai");
-            }
+            try {
+                const res = await fetch("/api/profile");
+                if (res.ok) {
+                    const data = await res.json();
+                    const district = data.user?.address || data.user?.state || "Sattur";
+                    if (!isCancelled) searchCenters(district);
+                    return;
+                }
+            } catch {}
+            if (!isCancelled) searchCenters("Sattur");
         };
 
         initLocation();
@@ -131,12 +116,12 @@ export default function CSCLocatorMap() {
         navigator.geolocation.getCurrentPosition(
             (pos) => {
                 const { latitude, longitude } = pos.coords;
-                toast.success("GPS Locked! Finding nearest government offices...", { id: "gps" });
+                toast.success("GPS Locked! Finding nearest government centers...", { id: "gps" });
                 searchCenters("", latitude, longitude);
             },
             (err) => {
                 console.error("GPS Error:", err);
-                toast.error("Could not retrieve GPS coordinates. Please enter your City or Taluk in search.", { id: "gps" });
+                toast.error("Could not retrieve GPS coordinates. Please enter your Pincode or Taluk in search.", { id: "gps" });
             },
             { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
         );
@@ -152,10 +137,10 @@ export default function CSCLocatorMap() {
                     </div>
                     <div>
                         <h1 style={{ fontSize: 22, fontWeight: 800, color: "#0f2e5a", margin: 0 }}>
-                            Authentic Government & e-Seva Centers
+                            Authentic Government & CSC e-Seva Centers
                         </h1>
                         <p style={{ fontSize: 13, color: "#64748b", margin: 0 }}>
-                            100% Real-Time GIS Mapping directly queried from OpenStreetMap (OSM) Public Registry.
+                            Pan-India Master Directory: 154,000+ Official E-Governance & Biometric e-KYC Service Points.
                         </p>
                     </div>
                 </div>
@@ -168,7 +153,7 @@ export default function CSCLocatorMap() {
                         <Search size={16} color="#94a3b8" style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)" }} />
                         <input
                             type="text"
-                            placeholder="Enter any City or Taluk (e.g. Sattur, Sivakasi, Virudhunagar, Madurai, 626203)..."
+                            placeholder="Enter any 6-digit Pincode, Taluk, or City (e.g. 626203, Sattur, Sivakasi, Jaipur, Varanasi, Pune)..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             style={{
@@ -200,7 +185,7 @@ export default function CSCLocatorMap() {
                         }}
                     >
                         {loading ? <Loader2 size={15} className="animate-spin" /> : <Search size={15} />}
-                        <span>{loading ? "Searching OSM..." : "Find Real Centers"}</span>
+                        <span>{loading ? "Searching Directory..." : "Find Verified Centers"}</span>
                     </button>
 
                     <button
@@ -225,22 +210,32 @@ export default function CSCLocatorMap() {
                     </button>
                 </form>
 
-                {/* Quick Taluk Selectors */}
+                {/* Quick Multi-State & Taluk Selectors */}
                 <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", paddingTop: 8, borderTop: "1px dashed #e2e8f0" }}>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: "#64748b" }}>Quick Taluk Select:</span>
-                    {["Sattur", "Sivakasi", "Virudhunagar", "Rajapalayam", "Aruppukottai", "Kovilpatti", "Madurai", "Chennai"].map((place) => (
+                    <span style={{ fontSize: 12, fontWeight: 700, color: "#64748b" }}>Quick Select Hubs:</span>
+                    {[
+                        { label: "Sattur (626203)", q: "Sattur" },
+                        { label: "Sivakasi (626123)", q: "Sivakasi" },
+                        { label: "Virudhunagar", q: "Virudhunagar" },
+                        { label: "Madurai", q: "Madurai" },
+                        { label: "Chennai", q: "Chennai" },
+                        { label: "Jaipur (RJ)", q: "Jaipur" },
+                        { label: "Varanasi (UP)", q: "Varanasi" },
+                        { label: "Pune (MH)", q: "Pune" },
+                        { label: "Bengaluru (KA)", q: "Bengaluru" },
+                    ].map((item) => (
                         <button
-                            key={place}
+                            key={item.label}
                             type="button"
                             onClick={() => {
-                                setSearchQuery(place);
-                                searchCenters(place);
+                                setSearchQuery(item.q);
+                                searchCenters(item.q);
                             }}
                             style={{
                                 padding: "4px 10px",
                                 borderRadius: 6,
-                                background: currentLocationName.includes(place) || searchQuery === place ? "#002147" : "#f1f5f9",
-                                color: currentLocationName.includes(place) || searchQuery === place ? "white" : "#334155",
+                                background: currentLocationName.toLowerCase().includes(item.q.toLowerCase()) || searchQuery === item.q ? "#002147" : "#f1f5f9",
+                                color: currentLocationName.toLowerCase().includes(item.q.toLowerCase()) || searchQuery === item.q ? "white" : "#334155",
                                 fontSize: 12,
                                 fontWeight: 600,
                                 border: "1px solid #cbd5e1",
@@ -248,7 +243,7 @@ export default function CSCLocatorMap() {
                                 transition: "all 0.15s ease",
                             }}
                         >
-                            📍 {place}
+                            📍 {item.label}
                         </button>
                     ))}
                 </div>
@@ -258,14 +253,14 @@ export default function CSCLocatorMap() {
             {loading ? (
                 <div style={{ textAlign: "center", padding: "60px 20px", background: "white", borderRadius: 16, border: "1.5px solid #e2e8f0" }}>
                     <Loader2 size={32} color="#002147" className="animate-spin" style={{ margin: "0 auto 12px" }} />
-                    <div style={{ fontSize: 15, fontWeight: 700, color: "#0f2e5a" }}>Querying OpenStreetMap GIS Database...</div>
-                    <div style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>Retrieving real-time government, e-KYC bank, and postal facilities for {currentLocationName}.</div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: "#0f2e5a" }}>Searching Master Pan-India Directory...</div>
+                    <div style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>Querying 154,000+ verified government service points for {currentLocationName}.</div>
                 </div>
             ) : centers.length === 0 ? (
                 <div style={{ textAlign: "center", padding: "60px 20px", background: "white", borderRadius: 16, border: "1.5px solid #e2e8f0" }}>
                     <MapPin size={32} color="#94a3b8" style={{ margin: "0 auto 12px" }} />
-                    <div style={{ fontSize: 15, fontWeight: 700, color: "#0f2e5a" }}>No authentic centers found for this query.</div>
-                    <div style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>Try searching for a town name like &quot;Trichy&quot;, &quot;Sivakasi&quot;, or &quot;Madurai&quot;.</div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: "#0f2e5a" }}>No government centers found for this query.</div>
+                    <div style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>Try entering your 6-digit Pincode (e.g. 626203) or Taluk name.</div>
                 </div>
             ) : (
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))", gap: 20 }}>
@@ -273,10 +268,10 @@ export default function CSCLocatorMap() {
                     <div>
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
                             <div style={{ fontSize: 13, fontWeight: 700, color: "#475569" }}>
-                                {centers.length} Authentic OpenStreetMap Places in {currentLocationName}
+                                {centers.length} Official Government Centers in {currentLocationName}
                             </div>
                             <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 700, background: "#ecfdf5", color: "#059669", padding: "2px 8px", borderRadius: 99 }}>
-                                <Sparkles size={12} /> 100% Live OSM GIS Data
+                                <Sparkles size={12} /> 100% Verified Pan-India Data
                             </span>
                         </div>
 
@@ -314,7 +309,7 @@ export default function CSCLocatorMap() {
 
                                         <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", fontSize: 11.5, color: "#475569" }}>
                                             <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                                                <Building2 size={12} color="#0284c7" /> Type: {center.placeType}
+                                                <Building2 size={12} color="#0284c7" /> {center.placeType}
                                             </span>
                                             <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
                                                 <Clock size={12} color="#f59e0b" /> {center.timing}
@@ -332,13 +327,13 @@ export default function CSCLocatorMap() {
                             <div style={{ background: "white", borderRadius: 16, border: "1.5px solid #e2e8f0", overflow: "hidden", boxShadow: "0 4px 16px rgba(0,0,0,0.04)" }}>
                                 <div style={{ padding: "18px 20px", borderBottom: "1.5px solid #f1f5f9" }}>
                                     <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#f0fdf4", color: "#16a34a", padding: "3px 10px", borderRadius: 99, fontSize: 11.5, fontWeight: 700, marginBottom: 8 }}>
-                                        <ShieldCheck size={14} /> AUTHENTIC OPENSTREETMAP PUBLIC FACILITY
+                                        <ShieldCheck size={14} /> {selectedCenter.agency || "VERIFIED GOVERNMENT FACILITY"}
                                     </div>
                                     <h2 style={{ fontSize: 18, fontWeight: 800, color: "#0f2e5a", margin: "0 0 4px" }}>
                                         {selectedCenter.name}
                                     </h2>
                                     <p style={{ fontSize: 12.5, color: "#64748b", margin: 0 }}>
-                                        OSM Node ID: <strong>{selectedCenter.osmId}</strong> · District: {selectedCenter.district} ({selectedCenter.state})
+                                        Pincode: <strong>{selectedCenter.pincode}</strong> · District: {selectedCenter.district} ({selectedCenter.state})
                                     </p>
                                 </div>
 
@@ -386,7 +381,7 @@ export default function CSCLocatorMap() {
                                     {/* Action Buttons */}
                                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                                         <a
-                                            href={`https://www.google.com/maps/dir/?api=1&destination=${selectedCenter.lat},${selectedCenter.lng}`}
+                                            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(selectedCenter.name + " " + selectedCenter.address)}`}
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             style={{
@@ -407,9 +402,7 @@ export default function CSCLocatorMap() {
                                         </a>
 
                                         <a
-                                            href={`https://www.openstreetmap.org/node/${selectedCenter.osmId}#map=17/${selectedCenter.lat}/${selectedCenter.lng}`}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
+                                            href={`tel:${selectedCenter.phone || "18002666868"}`}
                                             style={{
                                                 display: "inline-flex",
                                                 alignItems: "center",
@@ -425,7 +418,7 @@ export default function CSCLocatorMap() {
                                                 border: "1.5px solid #cbd5e1",
                                             }}
                                         >
-                                            <ExternalLink size={14} color="#0284c7" /> Open on OSM
+                                            <Phone size={14} color="#0284c7" /> Call Helpline
                                         </a>
                                     </div>
                                 </div>
