@@ -150,19 +150,20 @@ const processedMessageIds = new Set<string>();
                 continue;
             }
 
-            // Determine my number and LID for self-chat resolution
             const myNumber = (sock?.user?.id || "").split(":")[0].replace(/\D/g, "");
-            const myLid = (sock?.user as any)?.lid ? ((sock?.user as any)?.lid.split(":")[0].replace(/\D/g, "")) : "";
 
-            // If message was fromMe, check if it is sent in self-chat (Message Yourself)
+            // If message was fromMe, ensure we don't loop on bot's own notifications, but ALWAYS process user commands
             if (m.key.fromMe) {
-                const remoteDigits = remoteJid.split("@")[0].replace(/\D/g, "");
-                const isSelfPhone = myNumber && (remoteDigits.includes(myNumber.slice(-10)) || myNumber.includes(remoteDigits.slice(-10)));
-                const isSelfLid = myLid && (remoteJid.includes(myLid) || remoteDigits.includes(myLid));
-                const isSelfJid = remoteJid === sock?.user?.id || (myNumber && remoteJid.startsWith(myNumber));
-
-                // If sent fromMe to someone else (who is not self), do not interfere
-                if (!isSelfPhone && !isSelfLid && !isSelfJid && remoteDigits.length >= 10 && myNumber && !remoteDigits.endsWith(myNumber.slice(-10))) {
+                // Skip bot's own system notifications / alerts
+                if (
+                    text.includes("Developed by") ||
+                    text.includes("SMART BENEFICIARY") ||
+                    text.startsWith("🏛️ SBMS") ||
+                    text.startsWith("🇮🇳 *SMART") ||
+                    text.startsWith("📋 *Your Top") ||
+                    text.startsWith("🎓 *") ||
+                    text.startsWith("🤖 *SBMS Assistant")
+                ) {
                     continue;
                 }
             }
@@ -209,12 +210,14 @@ const processedMessageIds = new Set<string>();
                 // Call 3-Step State Machine
                 const reply = await processIncomingWhatsAppMessage(text, citizenId);
                 if (reply && reply.replyText) {
-                    const targetJid = (m.key.fromMe && myNumber) ? `${myNumber}@s.whatsapp.net` : remoteJid;
-                    await sock?.sendMessage(targetJid, { text: reply.replyText });
-                    if (targetJid !== remoteJid && !remoteJid.endsWith("@lid")) {
-                        try { await sock?.sendMessage(remoteJid, { text: reply.replyText }); } catch {}
+                    // Send directly to the active incoming chat thread (handles @s.whatsapp.net, @lid, and self-chats)
+                    await sock?.sendMessage(remoteJid, { text: reply.replyText });
+                    if (m.key.fromMe && myNumber && remoteJid !== `${myNumber}@s.whatsapp.net`) {
+                        try {
+                            await sock?.sendMessage(`${myNumber}@s.whatsapp.net`, { text: reply.replyText });
+                        } catch {}
                     }
-                    console.log(`[WHATSAPP OUTBOUND] 💬 Sent schemes reply to ${targetJid}`);
+                    console.log(`[WHATSAPP OUTBOUND] 💬 Sent schemes reply to ${remoteJid}`);
                 }
             } catch (err) {
                 console.error("Failed to send WhatsApp reply:", err);

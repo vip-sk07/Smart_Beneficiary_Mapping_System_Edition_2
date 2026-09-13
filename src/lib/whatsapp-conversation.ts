@@ -43,9 +43,9 @@ export async function processIncomingWhatsAppMessage(
         };
     }
 
-    // 2. Fetch schemes for matching
+    // 2. Fetch all active schemes for complete matching
     const schemes = await prisma.scheme.findMany({
-        take: 50,
+        where: { isActive: true },
         orderBy: { createdAt: "desc" },
         include: { category: true }
     });
@@ -76,7 +76,7 @@ export async function processIncomingWhatsAppMessage(
     }
 
     const combinedList = [...fullyEligible, ...docsPending];
-    const topFive = (combinedList.length > 0 ? combinedList : schemes).slice(0, 5);
+    const topFive = (fullyEligible.length >= 5 ? fullyEligible : (combinedList.length > 0 ? combinedList : schemes)).slice(0, 5);
 
     // ─── STATE 1: INITIAL / GREETING ────────────────────────────
     if (upperInput === "HI" || upperInput === "START" || upperInput === "NAMASTE" || upperInput === "ALERT") {
@@ -84,15 +84,16 @@ export async function processIncomingWhatsAppMessage(
         const docCount = user?.documents?.length || 0;
 
         return {
-            replyText: `🇮🇳 *SMART BENEFICIARY MAPPING SYSTEM (Govt of India)*\n━━━━━━━━━━━━━━━━━━━━\n🙏 *Namaste ${userName}!*\n\n✅ Your *Document Vault* has been analyzed (${docCount} certificate${docCount === 1 ? "" : "s"} verified).\n🎉 Based on your demographic profile & proofs, you qualify for *${combinedList.length || 12} Government Schemes*.\n\n💬 *Reply with SHOW to view your top matching schemes.*`,
+            replyText: `🇮🇳 *SMART BENEFICIARY MAPPING SYSTEM (Govt of India)*\n━━━━━━━━━━━━━━━━━━━━\n🙏 *Namaste ${userName}!*\n\n✅ Your *Document Vault* has been analyzed (${docCount} certificate${docCount === 1 ? "" : "s"} verified).\n🎉 Based on your demographic profile & proofs, you qualify for *${fullyEligible.length > 0 ? fullyEligible.length : combinedList.length} Government Schemes* (${docsPending.length} with documents pending).\n\n💬 *Reply with SHOW to view your top matching schemes.*`,
             quickButtons: ["SHOW", "🔍 Search Scheme", "📞 Helpline"],
             actionType: "INITIAL_ALERT"
         };
     }
 
     // ─── STATE 2: STEP 2 - USER SAYS "SHOW" / "LIST" ───────────
-    if (upperInput === "SHOW" || upperInput === "LIST" || upperInput === "SCHEMES" || upperInput.includes("SHOW MY SCHEMES") || upperInput.includes("MY SCHEMES")) {
-        let menuText = `📋 *Your Top Eligible Welfare Schemes:*\n━━━━━━━━━━━━━━━━━━━━\n`;
+    if (upperInput === "SHOW" || upperInput === "LIST" || upperInput === "SCHEMES" || upperInput.includes("SHOW MY SCHEMES") || upperInput.includes("MY SCHEMES") || upperInput.includes("SHOW SCHEMES")) {
+        const totalCount = fullyEligible.length > 0 ? fullyEligible.length : combinedList.length;
+        let menuText = `📋 *Your Top Eligible Welfare Schemes (Top 5 of ${totalCount}):*\n━━━━━━━━━━━━━━━━━━━━\n`;
 
         topFive.forEach((s, idx) => {
             const numberIcons = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣"];
@@ -103,7 +104,7 @@ export async function processIncomingWhatsAppMessage(
             menuText += `${icon} *${s.title}*\n   • Aid: ${shortBenefit}…\n   • Status: ${docBadge}\n\n`;
         });
 
-        menuText += `━━━━━━━━━━━━━━━━━━━━\n💬 *Reply with the number (e.g. 1, 2, 3) or scheme name to get full details, required documents checklist, and official portal application link.*`;
+        menuText += `━━━━━━━━━━━━━━━━━━━━\n📊 *Summary:* *${fullyEligible.length}* Verified Ready | *${docsPending.length}* Missing Documents\n🔗 *Full Portal:* https://smart-beneficiary-mapping-system.vercel.app/eligibility\n\n💬 *Reply with 1, 2, 3, 4, 5 or scheme name for full details & application link.*`;
 
         return {
             replyText: menuText,
