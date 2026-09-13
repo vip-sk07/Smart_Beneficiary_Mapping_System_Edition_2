@@ -158,7 +158,7 @@ const processedMessageIds = new Set<string>();
                     where: {
                         OR: [
                             { phone: { contains: cleanPhone10 } },
-                            { phone: "9384103655" }
+                            { phone: "9384102655" }
                         ]
                     }
                 });
