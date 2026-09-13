@@ -18,8 +18,8 @@ COPY tsconfig.json ./
 COPY src ./src/
 COPY scripts ./scripts/
 
-# Expose port
-ENV PORT=3002
+# Expose default container ports
+EXPOSE 10000
 EXPOSE 3002
 
 # Run WhatsApp Gateway daemon

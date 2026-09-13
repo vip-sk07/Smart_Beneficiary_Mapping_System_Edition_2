@@ -363,8 +363,8 @@ function startIPCServer() {
         }
     });
 
-    server.listen(IPC_PORT, () => {
-        console.log(`📡 Local IPC Bridge active on port ${IPC_PORT}`);
+    server.listen(IPC_PORT, "0.0.0.0", () => {
+        console.log(`📡 Local IPC Bridge active on http://0.0.0.0:${IPC_PORT}`);
     });
 }
 
