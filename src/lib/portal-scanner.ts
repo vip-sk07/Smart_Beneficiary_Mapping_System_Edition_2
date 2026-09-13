@@ -194,14 +194,23 @@ export async function scanSchemePortal(
     }
 
     // 3. Document Vault Matching
-    const docText = (scheme.documents || "").toLowerCase() + " " + scheme.description.toLowerCase();
+    const docText = (scheme.documents || "").toLowerCase() + " " + (scheme.description || "").toLowerCase() + " " + (scheme.eligibility || "").toLowerCase();
     const standardDocs = [
-        { type: "aadhaar", label: "Aadhaar Card", needed: true }, // Aadhaar is almost universal
-        { type: "income_cert", label: "Income Certificate", needed: docText.includes("income") || docText.includes("salary") || docText.includes("bpl") || docText.includes("ration") },
-        { type: "domicile", label: "Domicile / Residence Certificate", needed: docText.includes("domicile") || docText.includes("residence") || docText.includes("nativity") || docText.includes("residential") },
-        { type: "caste_cert", label: "Caste / Community Certificate", needed: docText.includes("caste") || docText.includes("community") || docText.includes("category") || docText.includes("sc/st") || docText.includes("obc") },
-        { type: "photo", label: "Passport Size Photograph", needed: docText.includes("photo") || docText.includes("passport size") },
-        { type: "disability_cert", label: "Disability Certificate", needed: docText.includes("disability") || docText.includes("handicap") || docText.includes("pwd") },
+        { type: "aadhaar", label: "Aadhaar Card (e-KYC)", needed: true }, // Aadhaar is universal for government DBT & verification
+        { type: "bank_passbook", label: "Bank Passbook / Cancelled Cheque", needed: docText.includes("bank") || docText.includes("passbook") || docText.includes("account") || docText.includes("cheque") || docText.includes("ifsc") },
+        { type: "photo", label: "Passport Size Photograph", needed: docText.includes("photo") || docText.includes("photograph") },
+        { type: "signature", label: "Specimen Signature / Thumb Impression", needed: docText.includes("signature") || docText.includes("sign") || docText.includes("thumb") },
+        { type: "caste_cert", label: "Caste / Community / EWS Certificate", needed: docText.includes("caste") || docText.includes("community") || docText.includes("category") || docText.includes("sc/st") || docText.includes("obc") || docText.includes("ews") },
+        { type: "birth_cert", label: "Birth Certificate / Age Proof", needed: docText.includes("birth") || docText.includes("age proof") || docText.includes("dob") || docText.includes("slc") },
+        { type: "domicile", label: "Domicile / Nativity Certificate", needed: docText.includes("domicile") || docText.includes("residence") || docText.includes("nativity") || docText.includes("residential") },
+        { type: "income_cert", label: "Income Certificate / Salary Slip", needed: docText.includes("income") || docText.includes("salary") || docText.includes("itr") },
+        { type: "ration_card", label: "Ration Card (PHH / AAY / BPL)", needed: docText.includes("ration") || docText.includes("bpl") || docText.includes("antyodaya") || docText.includes("aay") },
+        { type: "education_cert", label: "Educational Marksheet / Degree", needed: docText.includes("marksheet") || docText.includes("degree") || docText.includes("bonafide") || docText.includes("student") || docText.includes("certificate of education") },
+        { type: "disability_cert", label: "Disability Certificate / UDID Card", needed: docText.includes("disability") || docText.includes("handicap") || docText.includes("pwd") || docText.includes("udid") },
+        { type: "land_record", label: "Land Records (Patta / Chitta / 7-12)", needed: docText.includes("land") || docText.includes("patta") || docText.includes("khasra") || docText.includes("chitta") || docText.includes("7/12") || docText.includes("ror") },
+        { type: "driving_license", label: "Driving License / Vehicle RC", needed: docText.includes("driving license") || docText.includes("license") || docText.includes("rc book") },
+        { type: "death_cert", label: "Death Certificate / Legal Heir Proof", needed: docText.includes("death") || docText.includes("legal heir") },
+        { type: "job_card", label: "MGNREGA Job Card / Shramik Card", needed: docText.includes("job card") || docText.includes("mgnrega") || docText.includes("shramik") || docText.includes("e-shram") },
     ];
 
     const userDocs = user.documents || [];

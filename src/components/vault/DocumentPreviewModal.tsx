@@ -19,6 +19,9 @@ interface DocumentPreviewModalProps {
     fileUrl?: string;
     fileName?: string;
     fileType?: string;
+    documentName?: string;
+    documentType?: string;
+    fileSize?: number | null;
     document?: DocumentItem | null;
 }
 
@@ -28,11 +31,14 @@ export default function DocumentPreviewModal({
     fileUrl,
     fileName,
     fileType,
+    documentName,
+    documentType,
+    fileSize,
     document: docItem,
 }: DocumentPreviewModalProps) {
     const safeUrl = fileUrl || docItem?.fileUrl || "";
-    const safeName = fileName || docItem?.name || "Document";
-    const safeType = fileType || docItem?.type || "";
+    const safeName = documentName || fileName || docItem?.name || "Document";
+    const safeType = documentType || fileType || docItem?.type || "";
 
     // Safely detect if it's a PDF or image based on data URL or type
     const isPDF =

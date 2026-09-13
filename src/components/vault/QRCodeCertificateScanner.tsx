@@ -6,7 +6,7 @@ import jsQR from "jsqr";
 import toast from "react-hot-toast";
 
 interface QRCodeScannerProps {
-    onVerifiedData: (data: {
+    onVerifiedData?: (data: {
         type: string;
         name: string;
         certificateNo?: string;
@@ -15,9 +15,10 @@ interface QRCodeScannerProps {
         state?: string;
         rawDecoded: string;
     }) => void;
+    onCertificateExtracted?: () => void;
 }
 
-export default function QRCodeCertificateScanner({ onVerifiedData }: QRCodeScannerProps) {
+export default function QRCodeCertificateScanner({ onVerifiedData, onCertificateExtracted }: QRCodeScannerProps) {
     const [scanning, setScanning] = useState(false);
     const [decodedResult, setDecodedResult] = useState<any | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -94,7 +95,8 @@ export default function QRCodeCertificateScanner({ onVerifiedData }: QRCodeScann
 
             setDecodedResult(result);
             toast.success("✅ QR Code verified! Authentic Government Certificate detected.");
-            onVerifiedData(result);
+            onVerifiedData?.(result);
+            onCertificateExtracted?.();
         } catch (err) {
             toast.error("Failed to parse QR code format.");
         }
