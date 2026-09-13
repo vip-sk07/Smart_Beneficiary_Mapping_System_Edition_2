@@ -19,7 +19,11 @@ export default function LoginPage() {
 
     useEffect(() => {
         const authError = searchParams?.get("error");
-        if (authError === "Configuration") {
+        const isDeleted = searchParams?.get("deleted");
+
+        if (isDeleted === "true") {
+            toast.success("Your account and all associated citizen data have been permanently deleted.");
+        } else if (authError === "Configuration") {
             toast.error("Google OAuth is not configured. Please sign in with Email & Password or Register.");
         } else if (authError) {
             toast.error(`Authentication error: ${authError}`);

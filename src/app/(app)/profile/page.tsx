@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
-import { User, Lock, Save, Users, Plus, Edit, Trash2, Bell } from "lucide-react";
+import { signOut } from "next-auth/react";
+import { User, Lock, Save, Users, Plus, Edit, Trash2, Bell, AlertTriangle, ShieldAlert } from "lucide-react";
 import Modal from "@/components/ui/Modal";
 import { ProfileAnimate } from "@/components/ui/PageAnimations";
 import PasswordStrength from "@/components/ui/PasswordStrength";
@@ -80,12 +81,20 @@ export default function ProfilePage() {
     const [pushEnabled, setPushEnabled] = useState(false);
     const [subscribing, setSubscribing] = useState(false);
 
+    // Account Deletion & Right to Erasure
+    const [hasPassword, setHasPassword] = useState(false);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [deleteConfirmText, setDeleteConfirmText] = useState("");
+    const [deletePassword, setDeletePassword] = useState("");
+    const [deleteLoading, setDeleteLoading] = useState(false);
+
     useEffect(() => {
         fetch("/api/profile")
             .then((r) => r.json())
             .then((data) => {
                 if (data.user) {
                     const u = data.user;
+                    setHasPassword(Boolean(u.hasPassword));
                     setProfile({
                         name: u.name ?? "",
                         email: u.email ?? "",
@@ -225,6 +234,40 @@ export default function ProfilePage() {
             toast.error("Something went wrong.");
         } finally {
             setPwLoading(false);
+        }
+    }
+
+    async function handleDeleteAccount() {
+        if (deleteConfirmText !== "DELETE") {
+            toast.error('Please type "DELETE" to confirm.');
+            return;
+        }
+        if (hasPassword && !deletePassword) {
+            toast.error("Please enter your current password to confirm deletion.");
+            return;
+        }
+
+        setDeleteLoading(true);
+        try {
+            const res = await fetch("/api/profile", {
+                method: "DELETE",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    confirmation: deleteConfirmText,
+                    password: deletePassword || undefined,
+                }),
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                toast.error(data.error || "Failed to delete account.");
+                setDeleteLoading(false);
+            } else {
+                toast.success("Your account and all associated data have been permanently removed.");
+                signOut({ callbackUrl: "/login?deleted=true" });
+            }
+        } catch {
+            toast.error("An error occurred during account deletion.");
+            setDeleteLoading(false);
         }
     }
 
@@ -384,6 +427,47 @@ export default function ProfilePage() {
                             <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 24, paddingTop: 20, borderTop: "1px solid #f3f4f6" }}>
                                 <button className="btn-primary" style={{ background: "#e11d48" }} onClick={handlePasswordChange} disabled={pwLoading}>
                                     {pwLoading ? "Updating..." : "Update Password"}
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Danger Zone: Citizen Right to Erasure */}
+                        <div className="card mt-6" style={{ border: "1.5px solid #fecaca", background: "#fffafb" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+                                <div style={{ width: 34, height: 34, borderRadius: 8, background: "#fee2e2", color: "#dc2626", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                    <ShieldAlert size={18} />
+                                </div>
+                                <div>
+                                    <h2 style={{ fontSize: 16, fontWeight: 700, color: "#991b1b", margin: 0 }}>Danger Zone</h2>
+                                    <p style={{ fontSize: 12, color: "#b91c1c", margin: 0 }}>Citizen Right to Erasure &amp; Data Sovereignty</p>
+                                </div>
+                            </div>
+                            <p style={{ fontSize: 13, color: "#4b5563", lineHeight: 1.6, marginBottom: 16 }}>
+                                Permanently delete your citizen account, profile, uploaded documents in the Vault, family records, grievance logs, and application history. <strong>This action cannot be undone.</strong>
+                            </p>
+                            <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                                <button
+                                    onClick={() => {
+                                        setDeleteConfirmText("");
+                                        setDeletePassword("");
+                                        setShowDeleteModal(true);
+                                    }}
+                                    style={{
+                                        padding: "9px 16px",
+                                        background: "#dc2626",
+                                        color: "#ffffff",
+                                        border: "none",
+                                        borderRadius: 8,
+                                        fontSize: 13,
+                                        fontWeight: 700,
+                                        cursor: "pointer",
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        gap: 6,
+                                        boxShadow: "0 2px 8px rgba(220, 38, 38, 0.25)",
+                                    }}
+                                >
+                                    <Trash2 size={15} /> Delete Account
                                 </button>
                             </div>
                         </div>
@@ -600,6 +684,103 @@ export default function ProfilePage() {
                         <div style={{ display: "flex", justifyContent: "flex-end", gap: 12, marginTop: 12 }}>
                             <button className="btn-secondary" onClick={() => setShowFamilyModal(false)}>Cancel</button>
                             <button className="btn-primary" onClick={handleSaveFamily}>Save Member</button>
+                        </div>
+                    </div>
+                </Modal>
+
+                {/* Account Deletion Confirmation Modal */}
+                <Modal
+                    isOpen={showDeleteModal}
+                    onClose={() => setShowDeleteModal(false)}
+                    title={
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#dc2626" }}>
+                            <AlertTriangle size={20} />
+                            <span>Confirm Permanent Account Deletion</span>
+                        </div>
+                    }
+                    maxWidth={520}
+                >
+                    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                        <div style={{ background: "#fef2f2", border: "1px solid #fee2e2", borderRadius: 10, padding: "14px 16px" }}>
+                            <p style={{ fontSize: 13, color: "#991b1b", fontWeight: 700, margin: "0 0 8px" }}>
+                                ⚠️ Permanent Erasure Warning:
+                            </p>
+                            <ul style={{ fontSize: 12.5, color: "#b91c1c", margin: 0, paddingLeft: 18, lineHeight: 1.6 }}>
+                                <li>Your citizen profile, demographic details, and phone linkage will be deleted.</li>
+                                <li>All uploaded certificates and documents in your Vault will be permanently purged.</li>
+                                <li>All submitted welfare scheme applications and status logs will be removed.</li>
+                                <li>All family member profiles and grievance redressal tickets will be erased.</li>
+                            </ul>
+                        </div>
+
+                        <div>
+                            <label style={{ display: "block", fontSize: 12.5, fontWeight: 700, color: "#374151", marginBottom: 6 }}>
+                                Type <span style={{ color: "#dc2626", fontWeight: 800 }}>DELETE</span> to confirm:
+                            </label>
+                            <input
+                                type="text"
+                                className="input"
+                                value={deleteConfirmText}
+                                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                                placeholder="Type DELETE"
+                                style={{ borderColor: deleteConfirmText === "DELETE" ? "#dc2626" : "#d1d5db" }}
+                            />
+                        </div>
+
+                        {hasPassword && (
+                            <div>
+                                <label style={{ display: "block", fontSize: 12.5, fontWeight: 700, color: "#374151", marginBottom: 6 }}>
+                                    Confirm your current password:
+                                </label>
+                                <input
+                                    type="password"
+                                    className="input"
+                                    value={deletePassword}
+                                    onChange={(e) => setDeletePassword(e.target.value)}
+                                    placeholder="Enter current password"
+                                />
+                            </div>
+                        )}
+
+                        <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 8 }}>
+                            <button
+                                type="button"
+                                onClick={() => setShowDeleteModal(false)}
+                                disabled={deleteLoading}
+                                style={{
+                                    padding: "9px 16px",
+                                    background: "#f3f4f6",
+                                    border: "1px solid #d1d5db",
+                                    borderRadius: 8,
+                                    fontSize: 13,
+                                    fontWeight: 600,
+                                    color: "#4b5563",
+                                    cursor: "pointer",
+                                }}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleDeleteAccount}
+                                disabled={deleteLoading || deleteConfirmText !== "DELETE" || (hasPassword && !deletePassword)}
+                                style={{
+                                    padding: "9px 18px",
+                                    background: deleteConfirmText === "DELETE" && (!hasPassword || deletePassword) ? "#dc2626" : "#9ca3af",
+                                    color: "white",
+                                    border: "none",
+                                    borderRadius: 8,
+                                    fontSize: 13,
+                                    fontWeight: 700,
+                                    cursor: deleteConfirmText === "DELETE" && (!hasPassword || deletePassword) ? "pointer" : "not-allowed",
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: 6,
+                                }}
+                            >
+                                <Trash2 size={15} />
+                                {deleteLoading ? "Deleting Account…" : "Permanently Delete Account"}
+                            </button>
                         </div>
                     </div>
                 </Modal>
