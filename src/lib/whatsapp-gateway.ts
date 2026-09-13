@@ -256,9 +256,13 @@ function startIPCServer() {
             }
         }
 
-        // 3. Visual Web QR Page (GET / and GET /qr)
-        if (req.method === "GET" && (parsedUrl.pathname === "/" || parsedUrl.pathname === "/qr")) {
-            res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+        // 3. Visual Web QR Page (GET / and GET /qr, plus HEAD for uptime checkers)
+        if ((req.method === "GET" || req.method === "HEAD") && (parsedUrl.pathname === "/" || parsedUrl.pathname === "/qr")) {
+            res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Access-Control-Allow-Origin": "*" });
+            if (req.method === "HEAD") {
+                res.end();
+                return;
+            }
 
             if (connectionStatus === "CONNECTED") {
                 res.end(`<!DOCTYPE html>
