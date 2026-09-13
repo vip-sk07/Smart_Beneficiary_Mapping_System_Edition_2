@@ -1,49 +1,26 @@
-# Multi-stage Dockerfile for Next.js 16 SBMS Application
-FROM node:20-alpine AS base
+FROM node:20-slim
 
-# 1. Install dependencies only when needed
-FROM base AS deps
-RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-COPY package.json package-lock.json* ./
+# Install system dependencies
+RUN apt-get update -y && apt-get install -y openssl ca-certificates && rm -rf /var/lib/apt/lists/*
+
+# Copy package files & prisma schema
+COPY package*.json ./
 COPY prisma ./prisma/
-RUN npm ci
 
-# 2. Rebuild the source code only when needed
-FROM base AS builder
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
-
-# Generate Prisma Client & Build Next.js
-ENV NEXT_TELEMETRY_DISABLED=1
-ENV NODE_ENV=production
+# Install dependencies and generate prisma client
+RUN npm install
 RUN npx prisma generate
-RUN npm run build
 
-# 3. Production image, copy all the files and run next
-FROM base AS runner
-WORKDIR /app
+# Copy application files
+COPY tsconfig.json ./
+COPY src ./src/
+COPY scripts ./scripts/
 
-ENV NODE_ENV=production
-ENV NEXT_TELEMETRY_DISABLED=1
-ENV PORT=3001
-ENV HOSTNAME="0.0.0.0"
+# Expose port
+ENV PORT=3002
+EXPOSE 3002
 
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
-
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/package.json ./package.json
-
-# Copy standalone build output or full build
-COPY --from=builder --chown=nextjs:nodejs /app/.next ./.next
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
-
-USER nextjs
-
-EXPOSE 3001
-
-CMD ["npm", "start"]
+# Run WhatsApp Gateway daemon
+CMD ["npm", "run", "whatsapp"]
