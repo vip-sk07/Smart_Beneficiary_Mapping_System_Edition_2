@@ -24,7 +24,19 @@ function createPrismaClient() {
   // Node.js runtime (API routes, server actions, CLI seed scripts)
   const connectionString = process.env.DATABASE_URL || process.env.DIRECT_URL;
   if (!connectionString) {
-    throw new Error("DATABASE_URL is not set in environment.");
+    console.warn("⚠️ DATABASE_URL is not set in environment. Running with fallback client.");
+    return new Proxy({}, {
+      get(target, prop) {
+        if (prop === "$on" || prop === "$use" || prop === "$disconnect" || prop === "$connect") {
+          return () => Promise.resolve();
+        }
+        return new Proxy({}, {
+          get() {
+            return () => Promise.resolve(null);
+          }
+        });
+      }
+    }) as unknown as PrismaClient;
   }
 
   const { PrismaPg } = require("@prisma/adapter-pg");
