@@ -282,7 +282,7 @@ export default function ChatWidget() {
                                 <div>
                                     <div style={{ fontSize: 14, fontWeight: 800, color: "white", letterSpacing: "-0.01em", display: "flex", alignItems: "center", gap: 6 }}>
                                         SBMS Assistant
-                                        <span style={{ fontSize: 9, fontWeight: 800, background: "rgba(52,211,153,0.2)", color: "#34d399", padding: "2px 6px", borderRadius: 99, border: "1px solid rgba(52,211,153,0.3)", letterSpacing: "0.05em" }}>LOCAL AI</span>
+                                        <span style={{ fontSize: 9, fontWeight: 800, background: "rgba(52,211,153,0.2)", color: "#34d399", padding: "2px 6px", borderRadius: 99, border: "1px solid rgba(52,211,153,0.3)", letterSpacing: "0.05em" }}>AI ASSISTANT</span>
                                     </div>
                                     <div style={{ fontSize: 11.5, color: "rgba(165,180,252,0.8)", display: "flex", alignItems: "center", gap: 5 }}>
                                         <Zap size={11} color="#34d399" />
@@ -449,7 +449,7 @@ export default function ChatWidget() {
                                 </button>
                             </div>
                             <p style={{ fontSize: 10.5, color: "#94a3b8", textAlign: "center", marginTop: 6, fontWeight: 500 }}>
-                                Local AI (Ollama) · Government data from official sources
+                                SBMS AI · Official Government Welfare Data
                             </p>
                         </div>
                     </motion.div>

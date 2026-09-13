@@ -4,7 +4,7 @@ import { Pool } from "pg";
  * Search for schemes similar to the given query vector using
  * pgvector cosine similarity on the SchemeEmbedding table.
  *
- * Uses local pg Pool (works with local Podman PostgreSQL on port 5433).
+ * Supports both local PostgreSQL and Neon Cloud (with SSL).
  * Returns the top `limit` schemes ordered by similarity (closest first).
  */
 
@@ -12,11 +12,14 @@ let pool: Pool | null = null;
 
 function getPool(): Pool {
     if (!pool) {
+        const connectionString = process.env.DATABASE_URL || "";
+        const isCloud = !connectionString.includes("localhost") && !connectionString.includes("127.0.0.1");
+
         pool = new Pool({
-            connectionString: process.env.DATABASE_URL,
-            ssl: false,
+            connectionString,
+            ssl: isCloud ? { rejectUnauthorized: false } : false,
             max: 5,
-            connectionTimeoutMillis: 10000,
+            connectionTimeoutMillis: 8000,
         });
     }
     return pool;
@@ -24,13 +27,11 @@ function getPool(): Pool {
 
 export async function searchSimilarSchemes(
     queryVector: number[],
-    limit = 5
+    limit = 8
 ): Promise<SimilarScheme[]> {
-    const db = getPool();
-
-    // No embeddings in DB yet — return empty gracefully
     if (!queryVector || queryVector.length === 0) return [];
 
+    const db = getPool();
     const vectorLiteral = `[${queryVector.join(",")}]`;
 
     try {
@@ -55,8 +56,7 @@ export async function searchSimilarSchemes(
         );
         return result.rows as SimilarScheme[];
     } catch (err: any) {
-        // If SchemeEmbedding table is empty or vector extension not ready, return empty
-        console.warn("[RAG] searchSimilarSchemes failed (embeddings may not exist yet):", err.message);
+        console.warn("[RAG] Vector similarity search fallback:", err.message);
         return [];
     }
 }
@@ -71,5 +71,3 @@ export interface SimilarScheme {
     category: string;
     similarity: number;
 }
-
-

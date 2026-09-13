@@ -75,7 +75,7 @@ export default function WhatsAppGatewayPage() {
                             Real WhatsApp Autonomous Gateway
                         </h1>
                         <p style={{ fontSize: 13.5, color: "#64748b", margin: 0 }}>
-                            Direct real-time WhatsApp integration powered by open-source Baileys Gateway & Local AI.
+                            Direct real-time WhatsApp integration powered by open-source Baileys Gateway & Autonomous AI.
                         </p>
                     </div>
                 </div>

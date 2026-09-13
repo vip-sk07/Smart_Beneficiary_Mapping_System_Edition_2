@@ -615,7 +615,7 @@ export default async function LandingPage() {
                                 <Lock size={18} />
                             </div>
                             <h3 style={{ fontSize: 15.5, fontWeight: 700, color: "#002147", marginBottom: 6 }}>
-                                100% Local AI & Privacy
+                                Zero-Knowledge Privacy & Secure AI
                             </h3>
                             <p style={{ fontSize: 13, color: "#64748b", lineHeight: 1.6, margin: 0 }}>
                                 Aadhaar numbers and PII are masked using automated regex scrubbers. No private data is ever shared with third-party cloud AI vendors.
