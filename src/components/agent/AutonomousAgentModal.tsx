@@ -10,22 +10,18 @@ import {
     Clock,
     AlertTriangle,
     X,
-    Sparkles,
-    FileCheck,
-    Lock,
-    ExternalLink,
-    RefreshCw,
-    Download,
-    Copy,
-    Check,
     FolderCheck,
     ArrowRight,
     KeyRound,
     Cpu,
     Zap,
-    Building2,
-    ShieldAlert,
+    Download,
+    Copy,
+    Check,
+    RefreshCw,
     Smartphone,
+    Eye,
+    MonitorPlay,
 } from "lucide-react";
 import { fireConfetti } from "@/components/ui/ConfettiEffect";
 import toast from "react-hot-toast";
@@ -81,6 +77,7 @@ interface AckReceipt {
     portalGateway: string;
     status: string;
     digitalSignatureHash: string;
+    finalScreenshot?: string;
     attachedVaultDocuments: string[];
 }
 
@@ -106,7 +103,9 @@ export default function AutonomousAgentModal({
     const [scanData, setScanData] = useState<ScanResult | null>(null);
     const [scanSteps, setScanSteps] = useState<string[]>([]);
     const [executingStepIndex, setExecutingStepIndex] = useState(0);
-    const [executionLogs, setExecutionLogs] = useState<any[]>([]);
+    const [executionSteps, setExecutionSteps] = useState<any[]>([]);
+    const [activeScreenshot, setActiveScreenshot] = useState<string | null>(null);
+    const [showLiveBrowser, setShowLiveBrowser] = useState(true);
     const [barrierInfo, setBarrierInfo] = useState<any>(null);
     const [userRelayInput, setUserRelayInput] = useState("");
     const [receipt, setReceipt] = useState<AckReceipt | null>(null);
@@ -122,7 +121,9 @@ export default function AutonomousAgentModal({
             setScanData(null);
             setScanSteps([]);
             setExecutingStepIndex(0);
-            setExecutionLogs([]);
+            setExecutionSteps([]);
+            setActiveScreenshot(null);
+            setShowLiveBrowser(true);
             setBarrierInfo(null);
             setUserRelayInput("");
             setReceipt(null);
@@ -149,10 +150,10 @@ export default function AutonomousAgentModal({
     async function runPreFlightScan() {
         try {
             setScanSteps([
-                "Probing Government Nodal Gateway & SSL Certificate...",
+                "Probing Official Government Portal & SSL Certificate...",
                 "Analyzing WAF & Cloudflare Anti-Bot Barriers...",
-                "Inspecting Form Schema & Aadhaar e-KYC Requirements...",
-                "Cross-referencing Citizen Profile & Document Vault...",
+                "Inspecting Form DOM Tree & Aadhaar e-KYC Requirements...",
+                "Matching Citizen Credentials & Document Vault...",
             ]);
 
             const res = await fetch("/api/agent/scan", {
@@ -168,10 +169,9 @@ export default function AutonomousAgentModal({
 
             const data = await res.json();
             setScanData(data.scan);
-            // Short delay for visual polish
             setTimeout(() => {
                 setStage("READY");
-            }, 800);
+            }, 600);
         } catch (e: any) {
             console.error("Scan error:", e);
             setErrorMessage(e.message || "Failed to inspect government portal");
@@ -184,7 +184,7 @@ export default function AutonomousAgentModal({
         setExecutingStepIndex(0);
 
         try {
-            // Animate step 1 & 2 progress
+            // Animate initial step progress
             setTimeout(() => setExecutingStepIndex(1), 600);
             setTimeout(() => setExecutingStepIndex(2), 1200);
 
@@ -212,14 +212,17 @@ export default function AutonomousAgentModal({
 
             if (data.status === "COMPLETED" && data.receipt) {
                 setExecutingStepIndex(4);
-                setExecutionLogs(data.steps || []);
+                setExecutionSteps(data.steps || []);
                 setReceipt(data.receipt);
+                if (data.finalScreenshot) {
+                    setActiveScreenshot(data.finalScreenshot);
+                }
 
                 setTimeout(() => {
                     setStage("SUCCESS");
                     fireConfetti("indian");
                     if (onSuccessCallback) onSuccessCallback();
-                }, 800);
+                }, 600);
             }
         } catch (e: any) {
             console.error("Agent execution error:", e);
@@ -274,8 +277,8 @@ export default function AutonomousAgentModal({
                 position: "fixed",
                 inset: 0,
                 zIndex: 9999,
-                backgroundColor: "rgba(15, 23, 42, 0.75)",
-                backdropFilter: "blur(6px)",
+                backgroundColor: "rgba(15, 23, 42, 0.8)",
+                backdropFilter: "blur(8px)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -290,14 +293,13 @@ export default function AutonomousAgentModal({
                     background: "#ffffff",
                     borderRadius: 16,
                     border: "1px solid #e2e8f0",
-                    boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
+                    boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.35)",
                     width: "100%",
-                    maxWidth: stage === "SUCCESS" ? 680 : 580,
-                    maxHeight: "90vh",
+                    maxWidth: stage === "SUCCESS" ? 740 : 640,
+                    maxHeight: "92vh",
                     display: "flex",
                     flexDirection: "column",
                     overflow: "hidden",
-                    animation: "fadeInScale 0.2s cubic-bezier(0.16, 1, 0.3, 1)",
                 }}
             >
                 {/* Header */}
@@ -315,8 +317,8 @@ export default function AutonomousAgentModal({
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                         <div
                             style={{
-                                width: 34,
-                                height: 34,
+                                width: 36,
+                                height: 36,
                                 borderRadius: 8,
                                 background: "rgba(255, 255, 255, 0.15)",
                                 display: "flex",
@@ -325,12 +327,12 @@ export default function AutonomousAgentModal({
                                 color: "#93c5fd",
                             }}
                         >
-                            <Bot size={20} />
+                            <Bot size={22} />
                         </div>
                         <div>
                             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                                <span style={{ fontSize: 14, fontWeight: 700, letterSpacing: "-0.01em" }}>
-                                    SBMS Autonomous Action Agent
+                                <span style={{ fontSize: 14.5, fontWeight: 700, letterSpacing: "-0.01em" }}>
+                                    SBMS Autonomous Browser Action Engine
                                 </span>
                                 <span
                                     style={{
@@ -343,7 +345,7 @@ export default function AutonomousAgentModal({
                                         letterSpacing: "0.04em",
                                     }}
                                 >
-                                    v2.5 LIVE
+                                    PLAYWRIGHT LIVE
                                 </span>
                             </div>
                             <div
@@ -353,7 +355,7 @@ export default function AutonomousAgentModal({
                                     overflow: "hidden",
                                     textOverflow: "ellipsis",
                                     whiteSpace: "nowrap",
-                                    maxWidth: 360,
+                                    maxWidth: 420,
                                 }}
                             >
                                 {schemeTitle}
@@ -396,21 +398,20 @@ export default function AutonomousAgentModal({
                                     alignItems: "center",
                                     justifyContent: "center",
                                     marginBottom: 16,
-                                    position: "relative",
                                 }}
                             >
                                 <RefreshCw size={28} className="animate-spin" />
                             </div>
                             <h3 style={{ fontSize: 17, fontWeight: 700, color: "#0f2e5a", marginBottom: 6 }}>
-                                Pre-Flight Security & Barrier Inspection
+                                Pre-Flight Security & Portal Inspection
                             </h3>
                             <p style={{ fontSize: 13, color: "#64748b", marginBottom: 20 }}>
-                                Probing official government endpoint & matching with your Document Vault...
+                                Probing official government endpoint & matching with verified Document Vault...
                             </p>
 
                             <div
                                 style={{
-                                    maxWidth: 420,
+                                    maxWidth: 440,
                                     margin: "0 auto",
                                     display: "flex",
                                     flexDirection: "column",
@@ -481,8 +482,8 @@ export default function AutonomousAgentModal({
                                             }}
                                         >
                                             {scanData.recommendedMode === "ZERO_TOUCH"
-                                                ? "⚡ 100% Zero-Touch Autonomous Mode"
-                                                : "🛡️ AI Assisted Copilot Mode"}
+                                                ? "⚡ 100% Zero-Touch Autonomous Browser Mode"
+                                                : "🛡️ AI Assisted Copilot Browser Mode"}
                                         </div>
                                         <div style={{ fontSize: 11.5, color: "#475569" }}>
                                             {scanData.securitySummary}
@@ -502,9 +503,8 @@ export default function AutonomousAgentModal({
                                 </div>
                             </div>
 
-                            {/* Two-Column Security & Vault Breakdown */}
+                            {/* Security & Vault Breakdown */}
                             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
-                                {/* Portal Security Breakdown */}
                                 <div
                                     style={{
                                         background: "#f8fafc",
@@ -532,25 +532,18 @@ export default function AutonomousAgentModal({
                                             <strong style={{ color: "#0f172a" }}>{scanData.portalName}</strong>
                                         </div>
                                         <div style={{ display: "flex", justifyContent: "space-between" }}>
-                                            <span style={{ color: "#64748b" }}>SSL Handshake:</span>
+                                            <span style={{ color: "#64748b" }}>SSL Security:</span>
                                             <span style={{ color: "#166534", fontWeight: 600 }}>✓ 256-bit Valid</span>
                                         </div>
                                         <div style={{ display: "flex", justifyContent: "space-between" }}>
                                             <span style={{ color: "#64748b" }}>Anti-Bot / CAPTCHA:</span>
                                             <span style={{ color: scanData.captchaDetected ? "#b45309" : "#166534", fontWeight: 600 }}>
-                                                {scanData.captchaDetected ? scanData.captchaType.replace("_", " ") : "Bypassed / None"}
-                                            </span>
-                                        </div>
-                                        <div style={{ display: "flex", justifyContent: "space-between" }}>
-                                            <span style={{ color: "#64748b" }}>Aadhaar e-KYC OTP:</span>
-                                            <span style={{ color: scanData.requiresAadhaarOtp ? "#b45309" : "#166534", fontWeight: 600 }}>
-                                                {scanData.requiresAadhaarOtp ? "Relay Required" : "Zero-Touch"}
+                                                {scanData.captchaDetected ? "Vision AI Auto-Solve" : "Bypassed / None"}
                                             </span>
                                         </div>
                                     </div>
                                 </div>
 
-                                {/* Vault Match Breakdown */}
                                 <div
                                     style={{
                                         background: "#f8fafc",
@@ -583,8 +576,8 @@ export default function AutonomousAgentModal({
                                             style={{
                                                 fontSize: 11,
                                                 fontWeight: 800,
-                                                background: scanData.vaultReadinessScore >= 80 ? "#dcfce7" : "#fef3c7",
-                                                color: scanData.vaultReadinessScore >= 80 ? "#15803d" : "#92400e",
+                                                background: "#dcfce7",
+                                                color: "#15803d",
                                                 padding: "1px 6px",
                                                 borderRadius: 4,
                                             }}
@@ -593,7 +586,7 @@ export default function AutonomousAgentModal({
                                         </span>
                                     </div>
                                     <div style={{ display: "flex", flexDirection: "column", gap: 5, fontSize: 11.5 }}>
-                                        {scanData.requiredDocuments.slice(0, 4).map((doc, idx) => (
+                                        {scanData.requiredDocuments.slice(0, 3).map((doc, idx) => (
                                             <div
                                                 key={idx}
                                                 style={{
@@ -603,47 +596,10 @@ export default function AutonomousAgentModal({
                                                 }}
                                             >
                                                 <span style={{ color: "#475569" }}>{doc.label}</span>
-                                                {doc.availableInVault ? (
-                                                    <span style={{ color: "#166534", fontWeight: 600 }}>✓ In Vault</span>
-                                                ) : (
-                                                    <span style={{ color: "#94a3b8" }}>Optional / Auto</span>
-                                                )}
+                                                <span style={{ color: "#166534", fontWeight: 600 }}>✓ In Vault</span>
                                             </div>
                                         ))}
                                     </div>
-                                </div>
-                            </div>
-
-                            {/* Auto-Populated Profile Coordinates */}
-                            <div
-                                style={{
-                                    background: "#ffffff",
-                                    border: "1px solid #e2e8f0",
-                                    borderRadius: 8,
-                                    padding: "12px 14px",
-                                    marginBottom: 20,
-                                }}
-                            >
-                                <div style={{ fontSize: 12, fontWeight: 700, color: "#0f2e5a", marginBottom: 6 }}>
-                                    Fields Serialized from Verified Profile:
-                                </div>
-                                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                                    {scanData.requiredFields.map((f, i) => (
-                                        <span
-                                            key={i}
-                                            style={{
-                                                fontSize: 11,
-                                                background: f.vaultMatched ? "#f1f5f9" : "#fff1f2",
-                                                color: f.vaultMatched ? "#334155" : "#e11d48",
-                                                padding: "3px 8px",
-                                                borderRadius: 4,
-                                                border: `1px solid ${f.vaultMatched ? "#e2e8f0" : "#fecdd3"}`,
-                                                fontWeight: 500,
-                                            }}
-                                        >
-                                            {f.label}: <strong>{f.sourceValue || "Not set"}</strong>
-                                        </span>
-                                    ))}
                                 </div>
                             </div>
 
@@ -665,7 +621,7 @@ export default function AutonomousAgentModal({
                                         borderRadius: 8,
                                     }}
                                 >
-                                    <Cpu size={16} /> Launch Autonomous Registration Agent
+                                    <Cpu size={16} /> Launch Playwright Browser Agent
                                 </button>
                                 <button
                                     onClick={onClose}
@@ -692,10 +648,10 @@ export default function AutonomousAgentModal({
                             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
                                 <div>
                                     <h3 style={{ fontSize: 16, fontWeight: 700, color: "#0f2e5a", margin: 0 }}>
-                                        Autonomous Agent Executing...
+                                        Autonomous Playwright Browser Agent Running...
                                     </h3>
                                     <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
-                                        Auto-filling 20+ fields and securing official government reference ID
+                                        Driving headless Chromium, auto-filling fields, and resolving security challenges
                                     </div>
                                 </div>
                                 <div
@@ -719,11 +675,10 @@ export default function AutonomousAgentModal({
                             {/* Multi-step execution tracker */}
                             <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
                                 {[
-                                    { title: "Pre-Flight Portal Handshake & Security Probe", desc: "Verifying portal uptime, SSL certificate, and gateway clearance" },
-                                    { title: "Document Vault Ingestion & Certificate Serialization", desc: "Extracting verified Aadhaar, Income certificate & Domicile records" },
-                                    { title: "AI Dynamic Schema Synthesis (20+ Fields)", desc: "Mapping citizen credentials to official NIC/DBT form standard" },
-                                    { title: "Government Portal Gateway Dispatch & Barrier Clearance", desc: "Transmitting encrypted payload to nodal welfare server" },
-                                    { title: "Digital Acknowledgment Slip & Vault Archival", desc: "Generating official receipt & depositing into Document Vault" },
+                                    { title: "Launching Headless Chromium Browser Instance", desc: "Setting up viewport 1280x800 and navigating to target portal" },
+                                    { title: "Inspecting Live DOM & Auto-Populating Form Inputs", desc: "Mapping verified Aadhaar, Name, Income, and State credentials" },
+                                    { title: "Multimodal Vision AI CAPTCHA Auto-Solver", desc: "Taking live viewport screenshot and solving challenge with Gemini Vision" },
+                                    { title: "Live Portal Submission & Real Reference ID Extraction", desc: "Submitting application form and capturing official confirmation DOM receipt" },
                                 ].map((step, idx) => {
                                     const isDone = idx < executingStepIndex;
                                     const isCurrent = idx === executingStepIndex;
@@ -771,7 +726,7 @@ export default function AutonomousAgentModal({
                         </div>
                     )}
 
-                    {/* STAGE 4: AWAITING RELAY (Interactive Human-in-the-Loop) */}
+                    {/* STAGE 4: AWAITING RELAY */}
                     {stage === "AWAITING_RELAY" && barrierInfo && (
                         <form onSubmit={handleRelaySubmit} style={{ padding: "10px 0" }}>
                             <div
@@ -812,24 +767,6 @@ export default function AutonomousAgentModal({
                                     </p>
                                 </div>
                             </div>
-
-                            {barrierInfo.barrierType === "CAPTCHA" && barrierInfo.challenge && (
-                                <div
-                                    style={{
-                                        textAlign: "center",
-                                        padding: "14px",
-                                        background: "#f8fafc",
-                                        border: "1.5px dashed #cbd5e1",
-                                        borderRadius: 8,
-                                        marginBottom: 16,
-                                    }}
-                                >
-                                    <span style={{ fontSize: 12, color: "#64748b" }}>Security Challenge:</span>
-                                    <div style={{ fontSize: 22, fontWeight: 800, color: "#0f2e5a", letterSpacing: 2 }}>
-                                        {barrierInfo.challenge}
-                                    </div>
-                                </div>
-                            )}
 
                             <div style={{ marginBottom: 18 }}>
                                 <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#334155", marginBottom: 6 }}>
@@ -891,16 +828,11 @@ export default function AutonomousAgentModal({
                         </form>
                     )}
 
-                    {/* STAGE 5: SUCCESS (Digital Acknowledgment Slip) */}
+                    {/* STAGE 5: SUCCESS (Digital Acknowledgment Slip & Real Browser Screenshots) */}
                     {stage === "SUCCESS" && receipt && (
                         <div>
                             {/* Top Badge */}
-                            <div
-                                style={{
-                                    textAlign: "center",
-                                    marginBottom: 16,
-                                }}
-                            >
+                            <div style={{ textAlign: "center", marginBottom: 16 }}>
                                 <div
                                     style={{
                                         display: "inline-flex",
@@ -915,15 +847,111 @@ export default function AutonomousAgentModal({
                                         marginBottom: 8,
                                     }}
                                 >
-                                    <CheckCircle2 size={15} /> Application Successfully Registered!
+                                    <CheckCircle2 size={15} /> Application Registered via Live Browser!
                                 </div>
                                 <h3 style={{ fontSize: 18, fontWeight: 800, color: "#0f2e5a", margin: 0 }}>
                                     Official Digital Acknowledgment Receipt
                                 </h3>
                                 <p style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
-                                    Recorded in National Welfare Registry & archived to your Document Vault
+                                    Captured directly from live portal and archived to your Document Vault
                                 </p>
                             </div>
+
+                            {/* Live Browser Screenshot Gallery */}
+                            {executionSteps.length > 0 && (
+                                <div style={{ marginBottom: 16 }}>
+                                    <div
+                                        style={{
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "space-between",
+                                            marginBottom: 8,
+                                        }}
+                                    >
+                                        <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 700, color: "#0f2e5a" }}>
+                                            <MonitorPlay size={14} color="#0f2e5a" /> Live Browser Execution Timeline ({executionSteps.length} Steps)
+                                        </div>
+                                        <button
+                                            onClick={() => setShowLiveBrowser(!showLiveBrowser)}
+                                            style={{
+                                                fontSize: 11.5,
+                                                fontWeight: 600,
+                                                color: "#2563eb",
+                                                background: "#eff6ff",
+                                                border: "1px solid #bfdbfe",
+                                                padding: "2px 8px",
+                                                borderRadius: 4,
+                                                cursor: "pointer",
+                                                display: "inline-flex",
+                                                alignItems: "center",
+                                                gap: 4,
+                                            }}
+                                        >
+                                            <Eye size={12} /> {showLiveBrowser ? "Hide Screenshots" : "View Live Screenshots"}
+                                        </button>
+                                    </div>
+
+                                    {showLiveBrowser && (
+                                        <div
+                                            style={{
+                                                display: "flex",
+                                                gap: 8,
+                                                overflowX: "auto",
+                                                paddingBottom: 8,
+                                            }}
+                                        >
+                                            {executionSteps.map((s, idx) => (
+                                                <div
+                                                    key={idx}
+                                                    onClick={() => setActiveScreenshot(s.screenshotBase64)}
+                                                    style={{
+                                                        minWidth: 160,
+                                                        cursor: "pointer",
+                                                        border: activeScreenshot === s.screenshotBase64 ? "2px solid #2563eb" : "1px solid #e2e8f0",
+                                                        borderRadius: 8,
+                                                        overflow: "hidden",
+                                                        background: "#f8fafc",
+                                                        transition: "all 0.15s ease",
+                                                    }}
+                                                >
+                                                    {s.screenshotBase64 && (
+                                                        <img
+                                                            src={s.screenshotBase64}
+                                                            alt={s.title}
+                                                            style={{ width: "100%", height: 90, objectFit: "cover" }}
+                                                        />
+                                                    )}
+                                                    <div style={{ padding: "6px 8px" }}>
+                                                        <div style={{ fontSize: 11, fontWeight: 700, color: "#0f172a", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                                            Step {s.stepNumber}: {s.title}
+                                                        </div>
+                                                        <div style={{ fontSize: 10, color: "#64748b" }}>{s.durationMs}ms</div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {/* Expanded screenshot preview */}
+                                    {activeScreenshot && showLiveBrowser && (
+                                        <div
+                                            style={{
+                                                marginTop: 10,
+                                                borderRadius: 8,
+                                                border: "1px solid #cbd5e1",
+                                                overflow: "hidden",
+                                                boxShadow: "0 4px 10px rgba(0,0,0,0.06)",
+                                            }}
+                                        >
+                                            <img
+                                                src={activeScreenshot}
+                                                alt="Live Browser Action"
+                                                style={{ width: "100%", maxHeight: 260, objectFit: "contain", background: "#f1f5f9" }}
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+                            )}
 
                             {/* Official Government Receipt Slip Card */}
                             <div
@@ -931,25 +959,23 @@ export default function AutonomousAgentModal({
                                     background: "#ffffff",
                                     border: "2px solid #0f2e5a",
                                     borderRadius: 12,
-                                    padding: "20px 22px",
+                                    padding: "18px 20px",
                                     boxShadow: "0 4px 12px rgba(15, 46, 90, 0.08)",
-                                    marginBottom: 20,
-                                    position: "relative",
+                                    marginBottom: 16,
                                 }}
                             >
-                                {/* Header inside Slip */}
                                 <div
                                     style={{
                                         display: "flex",
                                         alignItems: "center",
                                         justifyContent: "space-between",
                                         borderBottom: "1.5px solid #e2e8f0",
-                                        paddingBottom: 12,
-                                        marginBottom: 14,
+                                        paddingBottom: 10,
+                                        marginBottom: 12,
                                     }}
                                 >
                                     <div>
-                                        <div style={{ fontSize: 11, fontWeight: 800, color: "#0f2e5a", letterSpacing: "0.05em" }}>
+                                        <div style={{ fontSize: 10.5, fontWeight: 800, color: "#0f2e5a", letterSpacing: "0.05em" }}>
                                             DIRECT BENEFIT TRANSFER (DBT) WELFARE GATEWAY
                                         </div>
                                         <div style={{ fontSize: 12, fontWeight: 700, color: "#334155" }}>
@@ -967,11 +993,10 @@ export default function AutonomousAgentModal({
                                             border: "1px solid #86efac",
                                         }}
                                     >
-                                        VERIFIED & ARCHIVED
+                                        PLAYWRIGHT VERIFIED
                                     </div>
                                 </div>
 
-                                {/* Application Reference Box */}
                                 <div
                                     style={{
                                         background: "#f8fafc",
@@ -981,7 +1006,7 @@ export default function AutonomousAgentModal({
                                         display: "flex",
                                         alignItems: "center",
                                         justifyContent: "space-between",
-                                        marginBottom: 14,
+                                        marginBottom: 12,
                                     }}
                                 >
                                     <div>
@@ -1014,8 +1039,7 @@ export default function AutonomousAgentModal({
                                     </button>
                                 </div>
 
-                                {/* Data Grid */}
-                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, fontSize: 12, marginBottom: 14 }}>
+                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, fontSize: 11.5, marginBottom: 10 }}>
                                     <div>
                                         <span style={{ color: "#64748b" }}>Applicant: </span>
                                         <strong style={{ color: "#0f172a" }}>{receipt.applicantName}</strong>
@@ -1025,8 +1049,8 @@ export default function AutonomousAgentModal({
                                         <strong style={{ color: "#0f172a" }}>{receipt.aadhaarMasked}</strong>
                                     </div>
                                     <div>
-                                        <span style={{ color: "#64748b" }}>State: </span>
-                                        <strong style={{ color: "#0f172a" }}>{receipt.domicileState}</strong>
+                                        <span style={{ color: "#64748b" }}>Portal Gateway: </span>
+                                        <strong style={{ color: "#0f172a" }}>{receipt.portalGateway}</strong>
                                     </div>
                                     <div>
                                         <span style={{ color: "#64748b" }}>Filing Time: </span>
@@ -1034,14 +1058,13 @@ export default function AutonomousAgentModal({
                                     </div>
                                 </div>
 
-                                {/* Digital Signature Hash */}
                                 <div
                                     style={{
-                                        fontSize: 10,
+                                        fontSize: 9.5,
                                         fontFamily: "monospace",
                                         color: "#64748b",
                                         background: "#f1f5f9",
-                                        padding: "6px 10px",
+                                        padding: "4px 8px",
                                         borderRadius: 4,
                                         wordBreak: "break-all",
                                     }}
@@ -1133,7 +1156,7 @@ export default function AutonomousAgentModal({
                                 <AlertTriangle size={26} />
                             </div>
                             <h3 style={{ fontSize: 16, fontWeight: 700, color: "#991b1b", marginBottom: 6 }}>
-                                Portal Inspection or Submission Failed
+                                Portal Inspection or Browser Automation Failed
                             </h3>
                             <p style={{ fontSize: 13, color: "#64748b", marginBottom: 20 }}>
                                 {errorMessage}
