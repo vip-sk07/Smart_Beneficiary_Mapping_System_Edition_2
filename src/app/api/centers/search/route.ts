@@ -17,29 +17,38 @@ function getServicesForOSMType(name: string, type: string): string[] {
     const lower = (name + " " + type).toLowerCase();
     if (lower.includes("post") || lower.includes("mail")) {
         return [
-            "Aadhaar Biometric e-KYC",
+            "Aadhaar Biometric e-KYC & Updates",
             "Post Office Savings DBT Account",
             "PM-KISAN e-KYC Verification",
-            "Jeevan Pramaan Life Certificate",
-            "Postal Life Insurance"
+            "Jeevan Pramaan Digital Life Certificate",
+            "Postal Life Insurance (PLI)"
         ];
     }
-    if (lower.includes("taluk") || lower.includes("tahsildar") || lower.includes("revenue") || lower.includes("collector")) {
+    if (lower.includes("taluk") || lower.includes("tahsildar") || lower.includes("revenue") || lower.includes("collector") || lower.includes("administrative")) {
         return [
-            "Income, Caste & Domicile Certificates",
-            "Patta / Chitta Land Transfer",
+            "Income, Community & Nativity Certificates",
+            "Patta / Chitta & Land Record Verification",
             "Old Age & Disability Pension (NSAP)",
-            "Chief Minister Relief Fund",
-            "Land Record Biometric Seeding"
+            "Chief Minister Relief Fund / Uzhavar Thittam",
+            "VAO Welfare Verification"
+        ];
+    }
+    if (lower.includes("bank")) {
+        return [
+            "Aadhaar NPCI DBT Bank Account Seeding",
+            "PM-KISAN Biometric Verification",
+            "Atal Pension Yojana (APY) Registration",
+            "Pradhan Mantri Jan Dhan Yojana (PMJDY)",
+            "PM Suraksha Bima Yojana (PMSBY)"
         ];
     }
     if (lower.includes("csc") || lower.includes("seva") || lower.includes("kendra") || lower.includes("digital")) {
         return [
-            "Aadhaar Biometric Enrollment",
+            "Aadhaar Biometric Enrollment & Update",
             "Ayushman Bharat PM-JAY Golden Card",
             "PM-Vishwakarma Artisan Registration",
             "e-Shram Universal Account Card",
-            "PM-KISAN Biometric e-KYC",
+            "Kalaignar Magalir Urimai Thogai Support",
             "National Scholarship Portal (NSP)"
         ];
     }
@@ -47,8 +56,18 @@ function getServicesForOSMType(name: string, type: string): string[] {
         "Aadhaar e-KYC & Biometrics",
         "Digital Seva Welfare Enrollment",
         "DBT Certificate Verification",
-        "Ayushman Bharat Card Printing"
+        "Government Citizen Services"
     ];
+}
+
+function getFormattedPlaceType(rawName: string, rawType: string): string {
+    const lower = (rawName + " " + rawType).toLowerCase();
+    if (lower.includes("post") || lower.includes("mail")) return "POST OFFICE (AADHAAR e-KYC)";
+    if (lower.includes("taluk") || lower.includes("tahsildar") || lower.includes("revenue") || lower.includes("collector")) return "TALUK / REVENUE OFFICE";
+    if (lower.includes("bank")) return "AADHAAR BANKING & DBT POINT";
+    if (lower.includes("csc") || lower.includes("seva") || lower.includes("kendra")) return "E-SEVA / CSC MAIYAM";
+    if (lower.includes("registrar")) return "SUB-REGISTRAR OFFICE";
+    return "GOVERNMENT ADMINISTRATIVE FACILITY";
 }
 
 export async function GET(req: Request) {
@@ -56,12 +75,12 @@ export async function GET(req: Request) {
     const query = searchParams.get("q") || "";
     const hasLat = searchParams.has("lat");
     const hasLng = searchParams.has("lng");
-    const userLat = parseFloat(searchParams.get("lat") || "9.4533");
-    const userLng = parseFloat(searchParams.get("lng") || "77.7978");
+    const userLat = parseFloat(searchParams.get("lat") || "9.3516");
+    const userLng = parseFloat(searchParams.get("lng") || "77.9211");
 
     let cleanQuery = query.trim();
     let detectedPlaceName = cleanQuery || "Current GPS Location";
-    let stateName = "India";
+    let stateName = "Tamil Nadu";
 
     try {
         let refLat = userLat;
@@ -129,13 +148,15 @@ export async function GET(req: Request) {
             console.error("Geocoding Error:", geoErr);
         }
 
+        // Specifically search for authentic government, CSC, e-Seva, Post Office, and Aadhaar Banking points (NO hospitals/ATMs)
         const searchQueries = [
-            `${cleanQuery} ${stateName}`,
-            `bank ${cleanQuery}`,
-            `post office ${cleanQuery}`,
             `taluk office ${cleanQuery}`,
-            `hospital ${cleanQuery}`,
+            `tahsildar ${cleanQuery}`,
+            `post office ${cleanQuery}`,
             `csc ${cleanQuery}`,
+            `e seva ${cleanQuery}`,
+            `bank ${cleanQuery}`,
+            `sub registrar ${cleanQuery}`,
             `government office ${cleanQuery}`,
         ];
 
@@ -162,28 +183,45 @@ export async function GET(req: Request) {
         const seenCoords = new Set<string>();
         const centers: any[] = [];
 
+        // Strict exclusion list: NO hospitals, clinics, ATMs, pharmacies, schools, hotels
+        const excludedKeywords = [
+            "hospital", "clinic", "pharmacy", "dentist", "nursing", "medical",
+            "atm", "cash machine", "school", "college", "university", "hotel",
+            "restaurant", "fuel", "petrol", "temple", "church", "mosque", "shop"
+        ];
+
         for (const item of allItems) {
             const lat = parseFloat(item.lat);
             const lng = parseFloat(item.lon);
             const coordKey = `${lat.toFixed(3)},${lng.toFixed(3)}`;
 
             if (seenCoords.has(coordKey)) continue;
-            seenCoords.add(coordKey);
 
             const rawName = item.name || item.display_name.split(",")[0] || "Government Public Center";
-            const placeType = item.type || item.class || "government";
+            const placeType = (item.type || item.class || "government").toLowerCase();
+            const fullStr = (rawName + " " + placeType + " " + item.display_name).toLowerCase();
+
+            // Strict filter out health/commercial/retail nodes
+            const isExcluded = excludedKeywords.some(ex => fullStr.includes(ex));
+            if (isExcluded) continue;
+
+            // Enforce same state to avoid cross-state false matches
+            const itemState = item.address?.state || "";
+            if (itemState && stateName && itemState.toLowerCase() !== stateName.toLowerCase()) continue;
+
+            seenCoords.add(coordKey);
             const dist = calculateDistance(refLat, refLng, lat, lng);
 
-            // Filter out places that are excessively far (> 100km) when a specific local town is searched
-            if (dist > 100 && cleanQuery.toLowerCase() !== "india") continue;
+            // Filter out places that are excessively far (> 60km) when a specific local town is searched
+            if (dist > 60 && cleanQuery.toLowerCase() !== "india") continue;
 
             centers.push({
                 id: `osm-${item.place_id}`,
                 osmId: String(item.osm_id || item.place_id),
                 name: rawName,
-                placeType: placeType.replace(/_/g, " ").toUpperCase(),
+                placeType: getFormattedPlaceType(rawName, placeType),
                 address: item.display_name,
-                state: item.address?.state || stateName,
+                state: itemState || stateName,
                 district: item.address?.county || item.address?.state_district || item.address?.city || cleanQuery,
                 pincode: item.address?.postcode || "626203",
                 phone: "+91 1800-3000-3468",
