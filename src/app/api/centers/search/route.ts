@@ -64,6 +64,9 @@ export async function GET(req: Request) {
     let stateName = "India";
 
     try {
+        let refLat = userLat;
+        let refLng = userLng;
+
         // 1. If GPS coordinates provided or query is "nearby", perform dynamic reverse geocoding
         if ((cleanQuery.toLowerCase() === "nearby" || cleanQuery === "" || hasLat) && hasLat && hasLng) {
             try {
@@ -80,7 +83,7 @@ export async function GET(req: Request) {
                     const revData = await revRes.json();
                     const addr = revData.address || {};
                     const talukOrCity = addr.suburb || addr.town || addr.village || addr.city || addr.county || addr.state_district || "Local Area";
-                    stateName = addr.state || "India";
+                    stateName = addr.state || "Tamil Nadu";
                     detectedPlaceName = `${talukOrCity}${addr.county ? `, ${addr.county}` : ""}`;
                     cleanQuery = talukOrCity;
                 }
@@ -90,24 +93,60 @@ export async function GET(req: Request) {
         }
 
         if (!cleanQuery || cleanQuery.toLowerCase() === "nearby") {
-            cleanQuery = "Virudhunagar";
-            detectedPlaceName = "Virudhunagar / Sivakasi";
+            cleanQuery = "Sattur";
+            detectedPlaceName = "Sattur, Virudhunagar";
         }
 
         // Standardize common aliases
         if (cleanQuery.toLowerCase() === "trichy") cleanQuery = "Tiruchirappalli";
 
+        // 2. Geocode the query town to get its exact latitude/longitude if not using browser GPS
+        let districtContext = "";
+        try {
+            const geoRes = await fetch(
+                `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(cleanQuery + " Tamil Nadu India")}&format=json&addressdetails=1&limit=1`,
+                {
+                    headers: {
+                        "User-Agent": "SBMS-Welfare-Platform/2.0 (contact@sbms.gov.in)",
+                        "Accept-Language": "en-IN,en;q=0.9"
+                    }
+                }
+            );
+            if (geoRes.ok) {
+                const geoList = await geoRes.json();
+                if (geoList.length > 0) {
+                    const primary = geoList[0];
+                    if (!hasLat || !hasLng) {
+                        refLat = parseFloat(primary.lat);
+                        refLng = parseFloat(primary.lon);
+                    }
+                    detectedPlaceName = primary.display_name.split(",").slice(0, 3).join(",");
+                    districtContext = primary.address?.county || primary.address?.state_district || "";
+                    if (primary.address?.state) stateName = primary.address.state;
+                }
+            }
+        } catch (geoErr) {
+            console.error("Geocoding Error:", geoErr);
+        }
+
         const searchQueries = [
-            `csc ${cleanQuery} ${stateName}`,
-            `e seva ${cleanQuery} ${stateName}`,
-            `post office ${cleanQuery} ${stateName}`,
-            `taluk office ${cleanQuery} ${stateName}`,
-            `government office ${cleanQuery} ${stateName}`,
-            `${cleanQuery} ${stateName}`
+            `${cleanQuery} ${stateName}`,
+            `bank ${cleanQuery}`,
+            `post office ${cleanQuery}`,
+            `taluk office ${cleanQuery}`,
+            `hospital ${cleanQuery}`,
+            `csc ${cleanQuery}`,
+            `government office ${cleanQuery}`,
         ];
 
+        if (districtContext && districtContext.toLowerCase() !== cleanQuery.toLowerCase()) {
+            searchQueries.push(`taluk office ${districtContext}`);
+            searchQueries.push(`post office ${districtContext}`);
+            searchQueries.push(`e seva ${districtContext}`);
+        }
+
         const fetchPromises = searchQueries.map(qText =>
-            fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(qText)}&format=json&addressdetails=1&limit=8`, {
+            fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(qText)}&format=json&addressdetails=1&limit=6`, {
                 headers: {
                     "User-Agent": "SBMS-Welfare-Platform/2.0 (contact@sbms.gov.in)",
                     "Accept-Language": "en-IN,en;q=0.9"
@@ -123,9 +162,6 @@ export async function GET(req: Request) {
         const seenCoords = new Set<string>();
         const centers: any[] = [];
 
-        let refLat = userLat;
-        let refLng = userLng;
-
         for (const item of allItems) {
             const lat = parseFloat(item.lat);
             const lng = parseFloat(item.lon);
@@ -138,6 +174,9 @@ export async function GET(req: Request) {
             const placeType = item.type || item.class || "government";
             const dist = calculateDistance(refLat, refLng, lat, lng);
 
+            // Filter out places that are excessively far (> 100km) when a specific local town is searched
+            if (dist > 100 && cleanQuery.toLowerCase() !== "india") continue;
+
             centers.push({
                 id: `osm-${item.place_id}`,
                 osmId: String(item.osm_id || item.place_id),
@@ -146,7 +185,7 @@ export async function GET(req: Request) {
                 address: item.display_name,
                 state: item.address?.state || stateName,
                 district: item.address?.county || item.address?.state_district || item.address?.city || cleanQuery,
-                pincode: item.address?.postcode || "620001",
+                pincode: item.address?.postcode || "626203",
                 phone: "+91 1800-3000-3468",
                 timing: "9:30 AM – 6:00 PM (Mon-Sat)",
                 services: getServicesForOSMType(rawName, placeType),
@@ -156,7 +195,7 @@ export async function GET(req: Request) {
             });
         }
 
-        // Sort by distance from user's live coordinates
+        // Sort by distance from reference coordinates
         centers.sort((a, b) => (a.distanceKm || 0) - (b.distanceKm || 0));
 
         return NextResponse.json({
@@ -164,7 +203,7 @@ export async function GET(req: Request) {
             query: detectedPlaceName,
             centerCoords: { lat: refLat, lng: refLng },
             total: centers.length,
-            centers: centers.slice(0, 20)
+            centers: centers.slice(0, 25)
         });
     } catch (err: any) {
         console.error("OSM Search API Error:", err);

@@ -163,12 +163,12 @@ export default function CSCLocatorMap() {
 
             {/* Search Bar */}
             <div style={{ background: "white", borderRadius: 14, border: "1.5px solid #e2e8f0", padding: "16px 20px", marginBottom: 24, boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
-                <form onSubmit={handleSearch} style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                <form onSubmit={handleSearch} style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
                     <div style={{ flex: 1, minWidth: 260, position: "relative" }}>
                         <Search size={16} color="#94a3b8" style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)" }} />
                         <input
                             type="text"
-                            placeholder="Enter any City or Taluk (e.g. Trichy, Sivakasi, Madurai, Chennai, Sattur, 626005)..."
+                            placeholder="Enter any City or Taluk (e.g. Sattur, Sivakasi, Virudhunagar, Madurai, 626203)..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             style={{
@@ -224,6 +224,34 @@ export default function CSCLocatorMap() {
                         <span>Live GPS Near Me</span>
                     </button>
                 </form>
+
+                {/* Quick Taluk Selectors */}
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", paddingTop: 8, borderTop: "1px dashed #e2e8f0" }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: "#64748b" }}>Quick Taluk Select:</span>
+                    {["Sattur", "Sivakasi", "Virudhunagar", "Rajapalayam", "Aruppukottai", "Kovilpatti", "Madurai", "Chennai"].map((place) => (
+                        <button
+                            key={place}
+                            type="button"
+                            onClick={() => {
+                                setSearchQuery(place);
+                                searchCenters(place);
+                            }}
+                            style={{
+                                padding: "4px 10px",
+                                borderRadius: 6,
+                                background: currentLocationName.includes(place) || searchQuery === place ? "#002147" : "#f1f5f9",
+                                color: currentLocationName.includes(place) || searchQuery === place ? "white" : "#334155",
+                                fontSize: 12,
+                                fontWeight: 600,
+                                border: "1px solid #cbd5e1",
+                                cursor: "pointer",
+                                transition: "all 0.15s ease",
+                            }}
+                        >
+                            📍 {place}
+                        </button>
+                    ))}
+                </div>
             </div>
 
             {/* Results Grid */}
@@ -231,7 +259,7 @@ export default function CSCLocatorMap() {
                 <div style={{ textAlign: "center", padding: "60px 20px", background: "white", borderRadius: 16, border: "1.5px solid #e2e8f0" }}>
                     <Loader2 size={32} color="#002147" className="animate-spin" style={{ margin: "0 auto 12px" }} />
                     <div style={{ fontSize: 15, fontWeight: 700, color: "#0f2e5a" }}>Querying OpenStreetMap GIS Database...</div>
-                    <div style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>Retrieving real-time government and postal facilities for {currentLocationName}.</div>
+                    <div style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>Retrieving real-time government, e-KYC bank, and postal facilities for {currentLocationName}.</div>
                 </div>
             ) : centers.length === 0 ? (
                 <div style={{ textAlign: "center", padding: "60px 20px", background: "white", borderRadius: 16, border: "1.5px solid #e2e8f0" }}>
