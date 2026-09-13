@@ -46,7 +46,6 @@ const userNavItems = [
     { href: "/applications", label: "My Applications", icon: FileText, color: "#fb923c" },
     { href: "/documents", label: "Document Vault", icon: FolderOpen, color: "#a78bfa" },
     { href: "/centers", label: "Find CSC Centers", icon: MapPin, color: "#38bdf8" },
-    { href: "/whatsapp-bot", label: "WhatsApp Gateway", icon: MessageSquare, color: "#22c55e", isNew: true },
     { href: "/grievances", label: "My Grievances", icon: AlertCircle, color: "#f87171" },
     { href: "/chat", label: "AI Assistant", icon: Bot, color: "#2dd4bf" },
     { href: "/announcements", label: "Announcements", icon: Megaphone, color: "#fbbf24" },
@@ -60,6 +59,7 @@ const adminNavItems = [
     { href: "/admin/applications", label: "Manage Applications", icon: FileText, color: "#a855f7" },
     { href: "/admin/grievances", label: "Manage Grievances", icon: AlertCircle, color: "#f87171" },
     { href: "/admin/announcements", label: "Announcements", icon: Megaphone, color: "#fbbf24" },
+    { href: "/whatsapp-bot", label: "WhatsApp Gateway", icon: MessageSquare, color: "#22c55e" },
 ];
 
 export default function Sidebar({

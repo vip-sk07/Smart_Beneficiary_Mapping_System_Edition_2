@@ -434,6 +434,36 @@ export default function ProfilePage() {
                                     value={profile.address} onChange={(e) => setProfile({ ...profile, address: e.target.value })} style={{ resize: "vertical" }} />
                             </div>
 
+                            {profile.phone && (
+                                <div style={{
+                                    marginTop: 18,
+                                    padding: "12px 16px",
+                                    borderRadius: 10,
+                                    background: "#f0fdf4",
+                                    border: "1px solid #bbf7d0",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "space-between",
+                                    flexWrap: "wrap",
+                                    gap: 10
+                                }}>
+                                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                        <span style={{ fontSize: 18 }}>📲</span>
+                                        <div>
+                                            <div style={{ fontSize: 13, fontWeight: 700, color: "#166534" }}>
+                                                Automated WhatsApp Welfare Alerts Active
+                                            </div>
+                                            <div style={{ fontSize: 11.5, color: "#15803d" }}>
+                                                Scheme eligibility discoveries and application status updates will be sent automatically in background to +91 {profile.phone}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <span style={{ fontSize: 11, fontWeight: 700, background: "#dcfce7", color: "#166534", padding: "3px 8px", borderRadius: 99 }}>
+                                        ✓ Background Active
+                                    </span>
+                                </div>
+                            )}
+
                             <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 20 }}>
                                 <button id="save-profile-btn" onClick={handleSave} disabled={saving} className="btn-primary" style={{ gap: 6 }}>
                                     <Save size={15} /> {saving ? "Saving…" : "Save Changes"}
