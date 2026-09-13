@@ -73,16 +73,48 @@ export default function CSCLocatorMap() {
         }
     };
 
-    // Initial Load: Virudhunagar & Sivakasi Government Hubs
+    // Initial Load: Attempt Live User Geolocation First, Fallback to Registered Citizen Profile
     useEffect(() => {
-        searchCenters("Virudhunagar");
+        let isCancelled = false;
+
+        const initLocation = async () => {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                        if (!isCancelled) {
+                            const { latitude, longitude } = pos.coords;
+                            searchCenters("", latitude, longitude);
+                        }
+                    },
+                    async () => {
+                        // If browser GPS is denied/prompted, fetch citizen's registered profile district/state
+                        try {
+                            const res = await fetch("/api/profile");
+                            if (res.ok) {
+                                const data = await res.json();
+                                const district = data.user?.address || data.user?.state || "Tamil Nadu";
+                                if (!isCancelled) searchCenters(district);
+                                return;
+                            }
+                        } catch {}
+                        if (!isCancelled) searchCenters("Chennai");
+                    },
+                    { enableHighAccuracy: true, timeout: 6000, maximumAge: 60000 }
+                );
+            } else {
+                searchCenters("Chennai");
+            }
+        };
+
+        initLocation();
+        return () => { isCancelled = true; };
     }, []);
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
         const q = searchQuery.trim();
         if (!q) {
-            searchCenters("Virudhunagar");
+            handleNearMe();
             return;
         }
         searchCenters(q);
@@ -100,11 +132,13 @@ export default function CSCLocatorMap() {
             (pos) => {
                 const { latitude, longitude } = pos.coords;
                 toast.success("GPS Locked! Finding nearest government offices...", { id: "gps" });
-                searchCenters("nearby", latitude, longitude);
+                searchCenters("", latitude, longitude);
             },
-            () => {
-                toast.error("Could not retrieve GPS coordinates. Showing default region.", { id: "gps" });
-            }
+            (err) => {
+                console.error("GPS Error:", err);
+                toast.error("Could not retrieve GPS coordinates. Please enter your City or Taluk in search.", { id: "gps" });
+            },
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
         );
     };
 
