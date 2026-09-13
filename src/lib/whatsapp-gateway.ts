@@ -105,9 +105,6 @@ const processedMessageIds = new Set<string>();
         if (type !== "notify") return;
 
         for (const m of messages) {
-            // Ignore messages sent by yourself
-            if (m.key.fromMe) continue;
-
             const msgId = m.key.id;
             if (!msgId || processedMessageIds.has(msgId)) {
                 continue; // Skip duplicate upsert events for the same message
@@ -139,14 +136,23 @@ const processedMessageIds = new Set<string>();
             const text = messageContent.trim();
             if (!text) continue;
 
-            // 🛡️ RULE 2: Command & Welfare Query Filter
+            // Extract command text
             const upper = text.toUpperCase();
-            const isCommand = ["SHOW", "1", "2", "3", "4", "5", "SCHEMES", "STATUS", "HELP", "ALERT", "START", "NAMASTE"].includes(upper);
+            const isCommand = ["SHOW", "1", "2", "3", "4", "5", "SCHEMES", "STATUS", "HELP", "ALERT", "START", "NAMASTE", "HI", "HELLO"].includes(upper);
             const isSchemeQuery = upper.includes("SCHEME") || upper.includes("SCHOLARSHIP") || upper.includes("FARMER") || upper.includes("LOAN") || upper.includes("PENSION");
 
             // IF CASUAL PERSONAL CHAT -> IGNORE COMPLETELY (DO NOTHING)
             if (!isCommand && !isSchemeQuery) {
                 continue;
+            }
+
+            // If message was fromMe, only process if sent in self-chat for testing
+            if (m.key.fromMe) {
+                const myNumber = (sock?.user?.id || "").split(":")[0].replace(/\D/g, "");
+                const targetNumber = remoteJid.replace(/\D/g, "");
+                if (myNumber && !targetNumber.includes(myNumber)) {
+                    continue; // Skip if sent from me to someone else
+                }
             }
 
             console.log(`[WHATSAPP INBOUND] 📩 Processing Command: "${text}" from ${remoteJid}`);
@@ -166,7 +172,7 @@ const processedMessageIds = new Set<string>();
                 if (citizen) {
                     citizenId = citizen.id;
                 } else {
-                    // 2. If admin is self-testing from their own number, use the latest registered user
+                    // 2. If admin or contact is testing, match the latest registered user
                     const defaultUser = await prisma.user.findFirst({
                         where: { role: "USER" },
                         orderBy: { updatedAt: "desc" }
