@@ -12,7 +12,7 @@ export interface AutomatedNotificationPayload {
     schemeTitle: string;
     schemeBenefit?: string;
     portalLink?: string;
-    triggerReason: "DOCUMENT_VERIFIED" | "PROFILE_COMPLETED" | "APPLICATION_APPROVED" | "NEW_SCHEME_MATCH" | "TEST_GATEWAY" | "INITIAL_ALERT";
+    triggerReason: "DOCUMENT_VERIFIED" | "PROFILE_COMPLETED" | "APPLICATION_SUBMITTED" | "APPLICATION_APPROVED" | "APPLICATION_REJECTED" | "GRIEVANCE_RESOLVED" | "NEW_SCHEME_MATCH" | "TEST_GATEWAY" | "INITIAL_ALERT";
 }
 
 export interface DispatchResult {
@@ -50,15 +50,22 @@ export async function sendAutomatedCitizenAlert(payload: AutomatedNotificationPa
     }
 
     // 1. Construct SBMS Message Payload
+    const baseUrl = process.env.NEXTAUTH_URL || "https://smart-beneficiary-mapping-system.vercel.app";
     let messageBody = "";
     if (triggerReason === "TEST_GATEWAY" || triggerReason === "INITIAL_ALERT") {
-        messageBody = `🏛️ *SMART BENEFICIARY MAPPING SYSTEM (SBMS)*\n*Developed by Karan Raj T, Navis Joshva Donel J, Srithinesh S (KR, NJ, SST)*\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n🙏 *Namaste ${citizenName}!* \n\n✅ Your citizen profile and credentials have been verified on the SBMS welfare portal.\n\n🎉 Based on your verified details, you qualify for **Eligible Welfare Schemes** with direct financial grants, scholarships, and subsidies.\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n💬 *Reply with SHOW to view your top matching schemes.*`;
+        messageBody = `🏛️ *SMART BENEFICIARY MAPPING SYSTEM (SBMS)*\n*Developed by Karan Raj T, Navis Joshva Donel J, Srithinesh S (KR, NJ, SST)*\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n🙏 *Namaste ${citizenName}!* \n\n✅ Your citizen profile and credentials have been verified on the SBMS welfare portal.\n\n🎉 Based on your verified details, you qualify for *Eligible Welfare Schemes* with direct financial grants, scholarships, and subsidies.\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n💬 *Reply with SHOW to view your top matching schemes.*`;
     } else if (triggerReason === "DOCUMENT_VERIFIED") {
-        messageBody = `🏛️ *SBMS WELFARE ALERT*\n*Developed by KR, NJ, SST*\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n🙏 *Namaste ${citizenName}!*\n\n✅ *Document Verified:* Your certificate has been verified successfully.\n\n🎯 *Matching Scheme:* *${schemeTitle}*\n💰 *Financial Benefit:* ${schemeBenefit || "Direct Benefit Transfer (DBT)"}\n\n🔗 *Access Portal:* ${portalLink || "http://localhost:3001/schemes"}\n\n💬 *Reply with SHOW to discover all eligible schemes.*`;
+        messageBody = `🏛️ *SBMS WELFARE ALERT*\n*Developed by KR, NJ, SST*\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n🙏 *Namaste ${citizenName}!*\n\n✅ *Document Verified:* Your certificate has been verified successfully.\n\n🎯 *Matching Scheme:* *${schemeTitle}*\n💰 *Financial Benefit:* ${schemeBenefit || "Direct Benefit Transfer (DBT)"}\n\n🔗 *Access Portal:* ${portalLink || `${baseUrl}/schemes`}\n\n💬 *Reply with SHOW to discover all eligible schemes.*`;
+    } else if (triggerReason === "APPLICATION_SUBMITTED") {
+        messageBody = `🏛️ *SBMS WELFARE ALERT*\n*Developed by KR, NJ, SST*\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n🙏 *Namaste ${citizenName}!* \n\n📝 *Application Submitted:* Your application for *"${schemeTitle}"* has been successfully lodged.\n\n🔍 *Tracking:* Our autonomous engine will track verification updates and notify you directly here.\n\n🔗 *Portal:* ${baseUrl}/applications`;
     } else if (triggerReason === "APPLICATION_APPROVED") {
-        messageBody = `🏛️ *SBMS WELFARE ALERT*\n*Developed by KR, NJ, SST*\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n🎉 *Congratulations ${citizenName}!* \n\nYour application for *"${schemeTitle}"* has been *APPROVED* by the Welfare Review Board.\n\n💳 Treasury disbursement is scheduled via Direct Benefit Transfer (DBT).`;
+        messageBody = `🏛️ *SBMS WELFARE ALERT*\n*Developed by KR, NJ, SST*\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n🎉 *Congratulations ${citizenName}!* \n\n✅ Your application for *"${schemeTitle}"* has been *APPROVED* by the Welfare Review Board.\n\n💳 Treasury disbursement is scheduled via Direct Benefit Transfer (DBT).\n\n🔗 *Portal:* ${baseUrl}/applications`;
+    } else if (triggerReason === "APPLICATION_REJECTED") {
+        messageBody = `🏛️ *SBMS WELFARE ALERT*\n*Developed by KR, NJ, SST*\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n🙏 *Namaste ${citizenName}!*\n\nℹ️ *Application Update:* Your application for *"${schemeTitle}"* requires additional documentation or has been updated.\n\n🔗 *Review Details:* ${baseUrl}/applications`;
+    } else if (triggerReason === "GRIEVANCE_RESOLVED") {
+        messageBody = `🏛️ *SBMS GRIEVANCE REDRESSAL*\n*Developed by KR, NJ, SST*\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n🙏 *Namaste ${citizenName}!* \n\n✅ *Grievance Resolved:* Your grievance regarding *"${schemeTitle}"* has been addressed and closed.\n\n🔗 *View Resolution:* ${baseUrl}/grievances`;
     } else {
-        messageBody = `🏛️ *SBMS WELFARE ALERT*\n*Developed by KR, NJ, SST*\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n🙏 *Namaste ${citizenName}!* \n\n🎯 New Welfare Match: You are eligible for *"${schemeTitle}"*.\n💰 Benefit: ${schemeBenefit || "Welfare Grant"}\n\n💬 *Reply with SHOW for details.*`;
+        messageBody = `🏛️ *SBMS WELFARE ALERT*\n*Developed by KR, NJ, SST*\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n🙏 *Namaste ${citizenName}!* \n\n🎯 *New Welfare Match:* You are eligible for *"${schemeTitle}"*.\n💰 *Benefit:* ${schemeBenefit || "Welfare Grant"}\n\n💬 *Reply with SHOW for details.*`;
     }
 
     const messageId = "MSG-AUTO-" + Math.floor(100000 + Math.random() * 900000);

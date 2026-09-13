@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
                             phone: user.phone,
                             schemeTitle: matchedScheme.title,
                             schemeBenefit: matchedScheme.benefits ? matchedScheme.benefits.slice(0, 120).replace(/\*\*/g, "") : "Direct Benefit Transfer (DBT)",
-                            portalLink: `http://localhost:3001/schemes/${matchedScheme.id}`,
+                            portalLink: `${process.env.NEXTAUTH_URL || "https://smart-beneficiary-mapping-system.vercel.app"}/schemes/${matchedScheme.id}`,
                             triggerReason: "DOCUMENT_VERIFIED"
                         });
                     }

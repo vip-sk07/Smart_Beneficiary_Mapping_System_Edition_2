@@ -65,7 +65,29 @@ export async function PATCH(
     const updatedApplication = await prisma.application.update({
       where: { id },
       data: updateData,
+      include: {
+        scheme: { select: { title: true, benefits: true } },
+        user: { select: { id: true, phone: true, name: true } }
+      }
     });
+
+    // 🚀 Autonomous Background Trigger: Notify citizen on Application Approval / Status Change
+    if (updateData.status && updatedApplication.user?.phone) {
+      (async () => {
+        try {
+          const { sendAutomatedCitizenAlert } = await import("@/lib/notifications");
+          await sendAutomatedCitizenAlert({
+            userId: updatedApplication.user.id,
+            phone: updatedApplication.user.phone!,
+            schemeTitle: updatedApplication.scheme.title,
+            schemeBenefit: updatedApplication.scheme.benefits ? updatedApplication.scheme.benefits.slice(0, 120).replace(/\*\*/g, "") : "Direct Benefit Transfer (DBT)",
+            triggerReason: updateData.status === "APPROVED" ? "APPLICATION_APPROVED" : updateData.status === "REJECTED" ? "APPLICATION_REJECTED" : "NEW_SCHEME_MATCH"
+          });
+        } catch (bgErr) {
+          console.error("[BG AUTO-WHATSAPP APP STATUS CHANGE ERROR]", bgErr);
+        }
+      })();
+    }
 
     return NextResponse.json(updatedApplication);
   } catch (error) {

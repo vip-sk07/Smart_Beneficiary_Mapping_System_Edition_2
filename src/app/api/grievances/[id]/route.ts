@@ -31,7 +31,7 @@ export async function PATCH(
                 ...(response !== undefined && { response }),
                 ...(isResolved && { resolvedOn: new Date() }),
             },
-            include: { user: { select: { name: true, email: true } } },
+            include: { user: { select: { id: true, name: true, email: true, phone: true } } },
         });
 
         if (isResolved) {
@@ -58,6 +58,24 @@ export async function PATCH(
                 );
             } catch (notifErr) {
                 console.error("Failed to create grievance notification:", notifErr);
+            }
+
+            // 🚀 Autonomous Background Trigger: Notify citizen via WhatsApp
+            if (grievance.user.phone) {
+                (async () => {
+                    try {
+                        const { sendAutomatedCitizenAlert } = await import("@/lib/notifications");
+                        await sendAutomatedCitizenAlert({
+                            userId: grievance.userId,
+                            phone: grievance.user.phone!,
+                            schemeTitle: grievance.subject,
+                            schemeBenefit: grievance.response || "Issue Resolved",
+                            triggerReason: "GRIEVANCE_RESOLVED"
+                        });
+                    } catch (bgErr) {
+                        console.error("[BG AUTO-WHATSAPP GRIEVANCE ERROR]", bgErr);
+                    }
+                })();
             }
         }
 

@@ -47,6 +47,25 @@ export async function POST(req: NextRequest) {
             data: { userId: session.user.id, schemeId, status: "PENDING" },
         });
 
+        // 🚀 Autonomous Background Trigger: Dispatch WhatsApp Alert on Application Submission
+        (async () => {
+            try {
+                const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { phone: true, name: true } });
+                if (user?.phone) {
+                    const { sendAutomatedCitizenAlert } = await import("@/lib/notifications");
+                    await sendAutomatedCitizenAlert({
+                        userId: session.user.id,
+                        phone: user.phone,
+                        schemeTitle: scheme.title,
+                        schemeBenefit: scheme.benefits ? scheme.benefits.slice(0, 120).replace(/\*\*/g, "") : "Welfare Benefits",
+                        triggerReason: "APPLICATION_SUBMITTED"
+                    });
+                }
+            } catch (bgErr) {
+                console.error("[BG AUTO-WHATSAPP APPLICATION SUBMIT ERROR]", bgErr);
+            }
+        })();
+
         return NextResponse.json({ application }, { status: 201 });
     } catch (err) {
         console.error("[POST /api/applications]", err);
