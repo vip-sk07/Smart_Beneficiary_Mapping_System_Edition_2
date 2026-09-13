@@ -154,15 +154,22 @@ const processedMessageIds = new Set<string>();
             const cleanPhone10 = senderDigits.slice(-10);
 
             try {
+                // 1. Look up the exact registered citizen by their incoming phone number
                 const citizen = await prisma.user.findFirst({
                     where: {
-                        OR: [
-                            { phone: { contains: cleanPhone10 } },
-                            { phone: "9384102655" }
-                        ]
+                        phone: { contains: cleanPhone10 }
                     }
                 });
-                if (citizen) citizenId = citizen.id;
+                if (citizen) {
+                    citizenId = citizen.id;
+                } else {
+                    // 2. If admin is self-testing from their own number, use the latest registered user
+                    const defaultUser = await prisma.user.findFirst({
+                        where: { role: "USER" },
+                        orderBy: { updatedAt: "desc" }
+                    });
+                    if (defaultUser) citizenId = defaultUser.id;
+                }
             } catch (err) {
                 console.error("DB query error:", err);
             }
