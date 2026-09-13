@@ -98,7 +98,7 @@ export default function EligibilityPage() {
                     <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
                         {/* Send Eligible Report to WhatsApp Button */}
                         <SendSchemeToWhatsApp
-                            allEligibleSchemes={data.eligible}
+                            allEligibleSchemes={[...(data.eligible || []), ...(data.docsPending || [])]}
                             variant="banner"
                             buttonLabel="📲 Send Report to My WhatsApp"
                         />

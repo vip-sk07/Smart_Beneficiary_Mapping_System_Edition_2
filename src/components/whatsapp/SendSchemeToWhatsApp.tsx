@@ -57,10 +57,12 @@ export default function SendSchemeToWhatsApp({
                 messageText += `📋 *Your Verified Welfare Schemes Report*\n\n`;
                 messageText += `Based on your profile and uploaded Document Vault certificates, you are eligible for *${allEligibleSchemes.length} Government Schemes*:\n\n`;
 
+                const origin = typeof window !== "undefined" ? window.location.origin : "https://smart-beneficiary-mapping-system.vercel.app";
+
                 allEligibleSchemes.slice(0, 5).forEach((s, idx) => {
                     messageText += `*${idx + 1}. ${s.title}*\n`;
                     if (s.reason) messageText += `   • Status: ${s.reason}\n`;
-                    messageText += `   • View: http://localhost:3001/schemes/${s.id}\n\n`;
+                    messageText += `   • View: ${origin}/schemes/${s.id}\n\n`;
                 });
 
                 if (allEligibleSchemes.length > 5) {
@@ -68,7 +70,7 @@ export default function SendSchemeToWhatsApp({
                 }
 
                 messageText += `━━━━━━━━━━━━━━━━━━━━\n`;
-                messageText += `🔗 *Access Full Dashboard:* http://localhost:3001/eligibility\n`;
+                messageText += `🔗 *Access Full Dashboard:* ${origin}/eligibility\n`;
                 messageText += `_Smart Beneficiary Mapping System (SBMS) — Developed by KR, NJ, SST_`;
             } else if (schemeTitle) {
                 // Single Scheme Alert

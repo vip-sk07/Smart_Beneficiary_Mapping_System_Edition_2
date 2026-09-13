@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
         const scanResult = await scanSchemePortal(scheme as any, user as any);
 
         // Determine target URL (Use official applyLink or the integrated sandbox portal)
-        const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
+        const baseUrl = process.env.NEXTAUTH_URL || "https://smart-beneficiary-mapping-system.vercel.app";
         let targetPortalUrl = scheme.applyLink?.trim();
 
         // If the scheme doesn't have an external URL or is a local demo, route to mock-portal sandbox

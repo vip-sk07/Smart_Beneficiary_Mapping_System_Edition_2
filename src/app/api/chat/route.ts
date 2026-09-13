@@ -105,7 +105,13 @@ Based on this user's profile, give personalized scheme recommendations.
                     .join("\n\n");
         }
 
-        const languageMap: Record<string, string> = { "en": "English", "hi": "Hindi (हिंदी)", "mr": "Marathi (मराठी)" };
+        const languageMap: Record<string, string> = {
+            "en": "English",
+            "hi": "Hindi (हिंदी)",
+            "ta": "Tamil (தமிழ்)",
+            "mr": "Marathi (मराठी)",
+            "te": "Telugu (తెలుగు)"
+        };
         const targetLanguage = languageMap[language || "en"] || "English";
 
         const dynamicSystemPrompt = `${SYSTEM_PROMPT}\n\nIMPORTANT: You MUST ONLY respond to the user in ${targetLanguage}. Do not use English unless the user requests it. Translate scheme details into ${targetLanguage}.\n\n${profileContext}\n\n${ragContext}`;

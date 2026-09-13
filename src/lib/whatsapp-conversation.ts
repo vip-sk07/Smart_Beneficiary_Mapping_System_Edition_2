@@ -113,8 +113,16 @@ export async function processIncomingWhatsAppMessage(
     }
 
     // ─── STATE 3: STEP 3 - USER ASKS FOR A NUMBER (1, 2, 3, 4, 5) ──
-    const requestedIndex = parseInt(rawInput);
-    if (!isNaN(requestedIndex) && requestedIndex >= 1 && requestedIndex <= topFive.length) {
+    const emojiNumberMap: Record<string, number> = { "1️⃣": 1, "2️⃣": 2, "3️⃣": 3, "4️⃣": 4, "5️⃣": 5, "1": 1, "2": 2, "3": 3, "4": 4, "5": 5 };
+    let requestedIndex: number | undefined = emojiNumberMap[rawInput];
+    if (!requestedIndex) {
+        const numMatch = rawInput.match(/(?:scheme\s*|option\s*|#\s*)?(\d+)/i);
+        if (numMatch) {
+            requestedIndex = parseInt(numMatch[1], 10);
+        }
+    }
+
+    if (requestedIndex && requestedIndex >= 1 && requestedIndex <= topFive.length) {
         const selectedScheme = topFive[requestedIndex - 1];
         return buildSchemeDetailResponse(selectedScheme, user);
     }

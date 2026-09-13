@@ -86,14 +86,23 @@ export default async function DashboardPage() {
     let recommendedSchemes: any[] = [];
     if (user) {
         try {
+            let ageStr = "";
+            if (user.dob) {
+                const ageDiff = Date.now() - new Date(user.dob).getTime();
+                const ageDate = new Date(ageDiff);
+                const calcAge = Math.abs(ageDate.getUTCFullYear() - 1970);
+                if (calcAge > 0 && calcAge < 120) {
+                    ageStr = `${calcAge} year old`;
+                }
+            }
+
             // Construct a rich natural language profile for the embedding engine
             const profileParts = [
-                user.age ? `${user.age} year old` : "",
+                ageStr,
                 user.gender ? user.gender.toLowerCase() : "",
                 user.occupation ? `working as ${user.occupation}` : "",
                 user.state ? `from ${user.state}` : "",
-                user.annualIncome ? `with annual income of ₹${user.annualIncome}` : "",
-                user.caste ? `belonging to ${user.caste} category` : "",
+                user.income ? `with annual income of ₹${user.income}` : "",
             ].filter(Boolean);
             
             const profileQuery = profileParts.length > 0 

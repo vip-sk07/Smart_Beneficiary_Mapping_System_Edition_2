@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
             phone: user.phone,
             schemeTitle: schemeTitle || "Post Matric Scholarship",
             schemeBenefit: schemeBenefit || "Up to ₹25,000 / year tuition reimbursement",
-            portalLink: portalLink || "http://localhost:3001/schemes",
+            portalLink: portalLink || `${process.env.NEXTAUTH_URL || "https://smart-beneficiary-mapping-system.vercel.app"}/schemes`,
             triggerReason: triggerReason || "DOCUMENT_VERIFIED"
         });
 
