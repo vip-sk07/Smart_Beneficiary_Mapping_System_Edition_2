@@ -31,7 +31,7 @@ let currentQR: string | null = null;
 let connectionStatus: "DISCONNECTED" | "SCAN_QR" | "CONNECTED" = "DISCONNECTED";
 
 const AUTH_DIR = path.join(process.cwd(), ".auth_whatsapp");
-const IPC_PORT = process.env.PORT ? parseInt(process.env.PORT) : 3002;
+const IPC_PORT = process.env.PORT ? parseInt(process.env.PORT) : 10000;
 
 export function getGatewayStatus() {
     return {
@@ -42,6 +42,9 @@ export function getGatewayStatus() {
 }
 
 export async function initWhatsAppGateway() {
+    // ⚡ Start HTTP health server immediately so Render probes pass instantly
+    startIPCServer();
+
     if (sock && connectionStatus === "CONNECTED") {
         return sock;
     }
@@ -366,6 +369,15 @@ function startIPCServer() {
     server.listen(IPC_PORT, "0.0.0.0", () => {
         console.log(`📡 Local IPC Bridge active on http://0.0.0.0:${IPC_PORT}`);
     });
+
+    if (IPC_PORT !== 3002) {
+        try {
+            const secondaryServer = http.createServer(server.listeners("request")[0] as any);
+            secondaryServer.listen(3002, "0.0.0.0", () => {
+                console.log(`📡 Secondary IPC Bridge active on http://0.0.0.0:3002`);
+            });
+        } catch {}
+    }
 }
 
 /**
