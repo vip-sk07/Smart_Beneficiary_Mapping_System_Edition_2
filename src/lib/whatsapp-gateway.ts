@@ -102,7 +102,8 @@ const processedMessageIds = new Set<string>();
 
     // Handle Incoming Messages with LID & Phone Resolution
     sock.ev.on("messages.upsert", async ({ messages, type }) => {
-        if (type !== "notify") return;
+        // Accept both "notify" (inbound messages) and "append" (self-sent / synced test messages)
+        if (type !== "notify" && type !== "append") return;
 
         for (const m of messages) {
             const msgId = m.key.id;
@@ -118,8 +119,8 @@ const processedMessageIds = new Set<string>();
             const remoteJid = m.key.remoteJid;
             if (!remoteJid) continue;
 
-            // 🛡️ RULE 1: Ignore all WhatsApp Group chats completely
-            if (remoteJid.endsWith("@g.us") || remoteJid.includes("-")) {
+            // 🛡️ RULE 1: Ignore all WhatsApp Group chats & Status broadcasts completely
+            if (remoteJid.endsWith("@g.us") || remoteJid.includes("-") || remoteJid === "status@broadcast") {
                 continue;
             }
 
@@ -138,7 +139,10 @@ const processedMessageIds = new Set<string>();
 
             // Extract command text
             const upper = text.toUpperCase();
-            const isCommand = ["SHOW", "1", "2", "3", "4", "5", "SCHEMES", "STATUS", "HELP", "ALERT", "START", "NAMASTE", "HI", "HELLO"].includes(upper);
+            const isCommand = [
+                "SHOW", "1", "2", "3", "4", "5", "SCHEMES", "STATUS", "HELP", 
+                "ALERT", "START", "NAMASTE", "HI", "HELLO", "LIST"
+            ].includes(upper) || upper.includes("SHOW MY SCHEMES") || upper.includes("MY SCHEMES");
             const isSchemeQuery = upper.includes("SCHEME") || upper.includes("SCHOLARSHIP") || upper.includes("FARMER") || upper.includes("LOAN") || upper.includes("PENSION");
 
             // IF CASUAL PERSONAL CHAT -> IGNORE COMPLETELY (DO NOTHING)
@@ -146,12 +150,20 @@ const processedMessageIds = new Set<string>();
                 continue;
             }
 
-            // If message was fromMe, only process if sent in self-chat for testing
+            // Determine my number and LID for self-chat resolution
+            const myNumber = (sock?.user?.id || "").split(":")[0].replace(/\D/g, "");
+            const myLid = (sock?.user as any)?.lid ? ((sock?.user as any)?.lid.split(":")[0].replace(/\D/g, "")) : "";
+
+            // If message was fromMe, check if it is sent in self-chat (Message Yourself)
             if (m.key.fromMe) {
-                const myNumber = (sock?.user?.id || "").split(":")[0].replace(/\D/g, "");
-                const targetNumber = remoteJid.replace(/\D/g, "");
-                if (myNumber && !targetNumber.includes(myNumber)) {
-                    continue; // Skip if sent from me to someone else
+                const remoteDigits = remoteJid.split("@")[0].replace(/\D/g, "");
+                const isSelfPhone = myNumber && (remoteDigits.includes(myNumber.slice(-10)) || myNumber.includes(remoteDigits.slice(-10)));
+                const isSelfLid = myLid && (remoteJid.includes(myLid) || remoteDigits.includes(myLid));
+                const isSelfJid = remoteJid === sock?.user?.id || (myNumber && remoteJid.startsWith(myNumber));
+
+                // If sent fromMe to someone else (who is not self), do not interfere
+                if (!isSelfPhone && !isSelfLid && !isSelfJid && remoteDigits.length >= 10 && myNumber && !remoteDigits.endsWith(myNumber.slice(-10))) {
+                    continue;
                 }
             }
 
@@ -160,24 +172,34 @@ const processedMessageIds = new Set<string>();
             // Try to match citizen profile by phone number if present
             let citizenId = undefined;
             const senderDigits = remoteJid.split("@")[0].replace(/\D/g, "");
-            const cleanPhone10 = senderDigits.slice(-10);
+            const cleanPhone10 = senderDigits.length >= 10 ? senderDigits.slice(-10) : "";
 
             try {
                 // 1. Look up the exact registered citizen by their incoming phone number
-                const citizen = await prisma.user.findFirst({
-                    where: {
-                        phone: { contains: cleanPhone10 }
-                    }
-                });
-                if (citizen) {
-                    citizenId = citizen.id;
-                } else {
-                    // 2. If admin or contact is testing, match the latest registered user
-                    const defaultUser = await prisma.user.findFirst({
-                        where: { role: "USER" },
+                if (cleanPhone10) {
+                    const citizen = await prisma.user.findFirst({
+                        where: {
+                            phone: { contains: cleanPhone10 }
+                        }
+                    });
+                    if (citizen) citizenId = citizen.id;
+                }
+
+                // 2. If self-testing or not matched by phone, prioritize user with documents / active user
+                if (!citizenId) {
+                    const userWithDocs = await prisma.user.findFirst({
+                        where: { documents: { some: {} } },
                         orderBy: { updatedAt: "desc" }
                     });
-                    if (defaultUser) citizenId = defaultUser.id;
+                    if (userWithDocs) {
+                        citizenId = userWithDocs.id;
+                    } else {
+                        const defaultUser = await prisma.user.findFirst({
+                            where: { role: "USER" },
+                            orderBy: { updatedAt: "desc" }
+                        });
+                        if (defaultUser) citizenId = defaultUser.id;
+                    }
                 }
             } catch (err) {
                 console.error("DB query error:", err);
@@ -187,8 +209,12 @@ const processedMessageIds = new Set<string>();
                 // Call 3-Step State Machine
                 const reply = await processIncomingWhatsAppMessage(text, citizenId);
                 if (reply && reply.replyText) {
-                    await sock?.sendMessage(remoteJid, { text: reply.replyText });
-                    console.log(`[WHATSAPP OUTBOUND] 💬 Sent schemes reply to ${remoteJid}`);
+                    const targetJid = (m.key.fromMe && myNumber) ? `${myNumber}@s.whatsapp.net` : remoteJid;
+                    await sock?.sendMessage(targetJid, { text: reply.replyText });
+                    if (targetJid !== remoteJid && !remoteJid.endsWith("@lid")) {
+                        try { await sock?.sendMessage(remoteJid, { text: reply.replyText }); } catch {}
+                    }
+                    console.log(`[WHATSAPP OUTBOUND] 💬 Sent schemes reply to ${targetJid}`);
                 }
             } catch (err) {
                 console.error("Failed to send WhatsApp reply:", err);

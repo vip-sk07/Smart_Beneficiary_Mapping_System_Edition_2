@@ -53,9 +53,117 @@ const ALL_INDIAN_STATES = [
     "West Bengal"
 ];
 
+export interface DocumentRequirement {
+    key: string;
+    label: string;
+    icon: string;
+    needed: boolean;
+}
+
+export function getSchemeDocumentRequirements(scheme: {
+    documents?: string | null;
+    description?: string | null;
+    eligibility?: string | null;
+    title?: string | null;
+}): DocumentRequirement[] {
+    const text = `${scheme.documents || ""} ${scheme.description || ""} ${scheme.eligibility || ""} ${scheme.title || ""}`.toLowerCase();
+
+    return [
+        {
+            key: "aadhaar",
+            label: "Aadhaar Card (e-KYC)",
+            icon: "🪪",
+            needed: text.includes("aadhaar") || text.includes("aadhar") || text.includes("identity proof") || text.includes("id proof") || text.includes("uidai")
+        },
+        {
+            key: "bank_passbook",
+            label: "Bank Passbook / Cancelled Cheque",
+            icon: "🏦",
+            needed: text.includes("bank") || text.includes("passbook") || text.includes("bank account") || text.includes("cheque") || text.includes("ifsc") || text.includes("micr") || text.includes("dbt")
+        },
+        {
+            key: "photo",
+            label: "Passport Size Photograph",
+            icon: "📸",
+            needed: text.includes("photo") || text.includes("photograph") || text.includes("passport size")
+        },
+        {
+            key: "signature",
+            label: "Specimen Signature / Thumb Impression",
+            icon: "✍️",
+            needed: text.includes("signature") || text.includes("specimen signature") || text.includes("thumb impression") || text.includes("declaration form")
+        },
+        {
+            key: "caste_cert",
+            label: "Caste / Category Certificate",
+            icon: "🏛️",
+            needed: text.includes("caste") || text.includes("community certificate") || text.includes("tribe") || text.includes("sc/st") || text.includes("obc") || text.includes("ews certificate") || text.includes("category certificate")
+        },
+        {
+            key: "birth_cert",
+            label: "Birth Certificate / Age Proof",
+            icon: "👶",
+            needed: text.includes("birth certificate") || text.includes("age proof") || text.includes("dob proof") || text.includes("school leaving") || text.includes("matriculation certificate")
+        },
+        {
+            key: "domicile",
+            label: "Domicile / Residence Certificate",
+            icon: "🏠",
+            needed: text.includes("domicile") || text.includes("residence certificate") || text.includes("residential certificate") || text.includes("nativity") || text.includes("proof of residence") || text.includes("residential proof")
+        },
+        {
+            key: "income_cert",
+            label: "Income Certificate / Salary Slip",
+            icon: "💰",
+            needed: text.includes("income certificate") || text.includes("salary slip") || text.includes("income proof") || text.includes("family income certificate") || text.includes("itr")
+        },
+        {
+            key: "ration_card",
+            label: "Ration Card (PHH / AAY / BPL)",
+            icon: "🍚",
+            needed: text.includes("ration card") || text.includes("bpl card") || text.includes("antyodaya") || text.includes("aay card") || text.includes("phh card") || text.includes("smart ration")
+        },
+        {
+            key: "education_cert",
+            label: "Educational Marksheet / Degree",
+            icon: "🎓",
+            needed: text.includes("marksheet") || text.includes("degree") || text.includes("bonafide") || text.includes("education certificate") || text.includes("student id") || text.includes("enrollment certificate") || text.includes("fellowship") || text.includes("ugc") || text.includes("college") || text.includes("university")
+        },
+        {
+            key: "disability_cert",
+            label: "Disability Certificate / UDID Card",
+            icon: "♿",
+            needed: text.includes("disability") || text.includes("medical certificate") || text.includes("udid") || text.includes("handicap") || text.includes("pwd certificate") || text.includes("divyang")
+        },
+        {
+            key: "land_record",
+            label: "Land Record / Patta / 7-12",
+            icon: "🌾",
+            needed: text.includes("land record") || text.includes("patta") || text.includes("khasra") || text.includes("khatauni") || text.includes("7/12") || text.includes("chitta") || text.includes("ror") || text.includes("land possession")
+        },
+        {
+            key: "driving_license",
+            label: "Driving License / Vehicle RC",
+            icon: "🚗",
+            needed: text.includes("driving license") || text.includes("driver license") || text.includes("rc book") || text.includes("vehicle registration")
+        },
+        {
+            key: "death_cert",
+            label: "Death Certificate / Legal Heir",
+            icon: "📜",
+            needed: text.includes("death certificate") || text.includes("legal heir") || text.includes("widow certificate")
+        },
+        {
+            key: "job_card",
+            label: "MGNREGA / Shramik Card",
+            icon: "👷",
+            needed: text.includes("job card") || text.includes("mgnrega") || text.includes("shramik") || text.includes("e-shram") || text.includes("bocw") || text.includes("unorganized worker")
+        },
+    ];
+}
+
 export function checkSchemeEligibility(user: any, scheme: any): EligibilityResult {
     const textLower = `${scheme.title || ""} ${scheme.description || ""} ${scheme.eligibility || ""}`.toLowerCase();
-    const docTextLower = (scheme.documents || "").toLowerCase();
 
     // 1. Calculate Age
     let age: number | null = null;
@@ -102,7 +210,6 @@ export function checkSchemeEligibility(user: any, scheme: any): EligibilityResul
     if (!isCentral) {
         for (const st of ALL_INDIAN_STATES) {
             const stLower = st.toLowerCase();
-            // Check if state is in title, or in explicit state tag/nodal description
             if (
                 scheme.title.toLowerCase().includes(stLower) ||
                 textLower.includes(`state:** ${stLower}`) ||
@@ -205,26 +312,18 @@ export function checkSchemeEligibility(user: any, scheme: any): EligibilityResul
         }
     }
 
-    // 7. Document Vault Checks
+    // 7. Full 15 Document Vault Checks
     const userDocs = user?.documents || [];
     const checkDoc = (docKey: string) => userDocs.some((d: any) => d.type === docKey);
 
-    const docRules = [
-        { label: "Aadhaar Card", key: "aadhaar", req: docTextLower.includes("aadhaar") || docTextLower.includes("aadhar") },
-        { label: "Income Certificate", key: "income_cert", req: docTextLower.includes("income") || docTextLower.includes("salary") },
-        { label: "Domicile Certificate", key: "domicile", req: docTextLower.includes("domicile") || docTextLower.includes("residence") || docTextLower.includes("residential") },
-        { label: "Caste Certificate", key: "caste_cert", req: docTextLower.includes("caste") || docTextLower.includes("category certificate") },
-        { label: "Disability Certificate", key: "disability_cert", req: docTextLower.includes("disability") },
-    ];
+    const docRequirements = getSchemeDocumentRequirements(scheme).filter(d => d.needed);
 
-    for (const d of docRules) {
-        if (d.req) {
-            totalCriteria++;
-            if (!checkDoc(d.key)) {
-                missingDocs.push(d.label);
-            } else {
-                criteriaMet++;
-            }
+    for (const d of docRequirements) {
+        totalCriteria++;
+        if (!checkDoc(d.key)) {
+            missingDocs.push(d.label);
+        } else {
+            criteriaMet++;
         }
     }
 
@@ -270,7 +369,7 @@ export function checkSchemeEligibility(user: any, scheme: any): EligibilityResul
             isIncomplete: false,
             hasMissingDocs: true,
             status: "docs_pending",
-            reason: `Profile matches, but missing required vault documents: ${missingDocs.join(", ")}`,
+            reason: `Demographic criteria matched, but missing ${missingDocs.length} required vault document(s): ${missingDocs.join(", ")}`,
             missingFields: [],
             missingDocs,
             matchScore,
@@ -279,7 +378,7 @@ export function checkSchemeEligibility(user: any, scheme: any): EligibilityResul
         };
     }
 
-    // Fully eligible with documents in place
+    // Fully eligible with all documents verified in vault
     const matchScore = totalCriteria > 0 ? Math.round((criteriaMet / totalCriteria) * 100) : 100;
     return {
         isEligible: true,

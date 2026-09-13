@@ -21,7 +21,7 @@ import {
     MapPin,
     Search,
 } from "lucide-react";
-import { checkSchemeEligibility } from "@/lib/eligibility";
+import { checkSchemeEligibility, getSchemeDocumentRequirements } from "@/lib/eligibility";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;
@@ -66,25 +66,8 @@ export default async function SchemeDetailPage({
     // Extract level
     const isCentral = scheme.description?.toLowerCase().includes("level:** central") ?? false;
 
-    // Detect required docs from unstructured text
-    const textLower = ((scheme.documents || "") + " " + (scheme.description || "") + " " + (scheme.eligibility || "")).toLowerCase();
-    const reqChecks = [
-        { label: "Aadhaar Card (e-KYC)", key: "aadhaar", needed: textLower.includes("aadhaar") || textLower.includes("aadhar") || textLower.includes("identity proof") },
-        { label: "Bank Passbook / Cancelled Cheque", key: "bank_passbook", needed: textLower.includes("bank") || textLower.includes("passbook") || textLower.includes("account") || textLower.includes("cheque") || textLower.includes("ifsc") },
-        { label: "Passport Size Photograph", key: "photo", needed: textLower.includes("photo") || textLower.includes("photograph") },
-        { label: "Specimen Signature / Thumb Impression", key: "signature", needed: textLower.includes("signature") || textLower.includes("sign") || textLower.includes("thumb") },
-        { label: "Caste / Category Certificate", key: "caste_cert", needed: textLower.includes("caste") || textLower.includes("community") || textLower.includes("tribe") || textLower.includes("sc/st") || textLower.includes("obc") || textLower.includes("ews") },
-        { label: "Birth Certificate / Age Proof", key: "birth_cert", needed: textLower.includes("birth") || textLower.includes("age proof") || textLower.includes("dob") || textLower.includes("slc") },
-        { label: "Domicile / Residence Certificate", key: "domicile", needed: textLower.includes("domicile") || textLower.includes("residence") || textLower.includes("residential") || textLower.includes("nativity") },
-        { label: "Income Certificate / Salary Slip", key: "income_cert", needed: textLower.includes("income") || textLower.includes("salary") || textLower.includes("itr") },
-        { label: "Ration Card (PHH / AAY / BPL)", key: "ration_card", needed: textLower.includes("ration") || textLower.includes("bpl") || textLower.includes("antyodaya") || textLower.includes("aay") },
-        { label: "Educational Marksheet / Degree", key: "education_cert", needed: textLower.includes("marksheet") || textLower.includes("degree") || textLower.includes("bonafide") || textLower.includes("education") || textLower.includes("student") },
-        { label: "Disability Certificate / UDID Card", key: "disability_cert", needed: textLower.includes("disability") || textLower.includes("medical") || textLower.includes("udid") || textLower.includes("handicap") || textLower.includes("pwd") },
-        { label: "Land Record / Patta / 7-12", key: "land_record", needed: textLower.includes("land") || textLower.includes("patta") || textLower.includes("khasra") || textLower.includes("khatauni") || textLower.includes("7/12") || textLower.includes("chitta") || textLower.includes("ror") },
-        { label: "Driving License / Vehicle RC", key: "driving_license", needed: textLower.includes("driving license") || textLower.includes("license") || textLower.includes("rc book") },
-        { label: "Death Certificate / Legal Heir", key: "death_cert", needed: textLower.includes("death") || textLower.includes("legal heir") },
-        { label: "MGNREGA / Shramik Card", key: "job_card", needed: textLower.includes("job card") || textLower.includes("mgnrega") || textLower.includes("shramik") || textLower.includes("e-shram") },
-    ].filter((r) => r.needed);
+    // Detect required docs using centralized requirement engine
+    const reqChecks = getSchemeDocumentRequirements(scheme).filter((r) => r.needed);
 
     const checkVault = (docKey: string) => {
         return user.documents?.some((d: any) => d.type === docKey);
@@ -170,7 +153,20 @@ export default async function SchemeDetailPage({
                             </Link>
                         </div>
                     </div>
-                ) : eligibility.isEligible ? (
+                ) : (eligibility.status === "docs_pending" || eligibility.hasMissingDocs) ? (
+                    <div style={{ background: "#fffbeb", border: "1.5px solid #fcd34d", borderRadius: 8, padding: "14px 18px", marginBottom: 20, display: "flex", alignItems: "start", gap: 12 }}>
+                        <AlertTriangle className="text-amber-600 mt-0.5 flex-shrink-0" size={18} />
+                        <div style={{ fontSize: 13, color: "#92400e" }}>
+                            <strong style={{ color: "#b45309", fontSize: 13.5 }}>Eligible — Required Documents Pending in Vault ({(eligibility.missingDocs || []).length} missing)</strong>
+                            <p style={{ color: "#78350f", margin: "4px 0 8px", lineHeight: 1.5 }}>
+                                You satisfy the demographic &amp; age criteria, but <strong>{(eligibility.missingDocs || []).join(", ")}</strong> must be uploaded to your Document Vault before applying.
+                            </p>
+                            <Link href="/documents" style={{ fontSize: 12, fontWeight: 700, color: "#92400e", background: "#fef3c7", padding: "4px 12px", borderRadius: 6, textDecoration: "none", border: "1px solid #fcd34d", display: "inline-flex", alignItems: "center", gap: 5 }}>
+                                <UploadCloud size={13} /> Upload Required Documents to Vault →
+                            </Link>
+                        </div>
+                    </div>
+                ) : eligibility.status === "eligible" ? (
                     <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, padding: "12px 18px", marginBottom: 20, display: "flex", alignItems: "center", gap: 10 }}>
                         <CheckCircle2 className="text-green-600 flex-shrink-0" size={18} />
                         <div style={{ fontSize: 13, color: "#166534" }}>

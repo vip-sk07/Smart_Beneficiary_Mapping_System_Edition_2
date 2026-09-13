@@ -1,13 +1,5 @@
-/**
- * Interactive WhatsApp Welfare Bot State Machine & Conversation Handler
- * Handles the 3-step progressive disclosure workflow:
- * Step 1: Initial Automated Alert ("Document verified. You qualify for X schemes. Reply SHOW")
- * Step 2: Numbered Menu ("1. Scheme A, 2. Scheme B...")
- * Step 3: Detailed Scheme Dossier with Verified Vault Proofs & Direct .gov.in Application Link
- */
-
 import { prisma } from "@/lib/prisma";
-import { checkSchemeEligibility } from "@/lib/eligibility";
+import { checkSchemeEligibility, getSchemeDocumentRequirements } from "@/lib/eligibility";
 
 export interface ConversationResponse {
     replyText: string;
@@ -51,49 +43,64 @@ export async function processIncomingWhatsAppMessage(
         };
     }
 
-    // 2. Fetch top schemes for matching
+    // 2. Fetch schemes for matching
     const schemes = await prisma.scheme.findMany({
-        take: 30,
-        orderBy: { createdAt: "desc" }
+        take: 50,
+        orderBy: { createdAt: "desc" },
+        include: { category: true }
     });
 
     // Compute eligible schemes
-    const eligibleSchemes: any[] = [];
+    const fullyEligible: any[] = [];
+    const docsPending: any[] = [];
+
     for (const s of schemes) {
         const res = checkSchemeEligibility(user, s);
-        if (res.status === "eligible" || res.status === "docs_pending" || res.isEligible) {
-            eligibleSchemes.push({
+        if (res.status === "eligible") {
+            fullyEligible.push({
                 ...s,
                 matchReason: res.reason,
                 missingDocs: res.missingDocs || [],
-                status: res.status
+                status: res.status,
+                matchScore: res.matchScore
+            });
+        } else if (res.status === "docs_pending") {
+            docsPending.push({
+                ...s,
+                matchReason: res.reason,
+                missingDocs: res.missingDocs || [],
+                status: res.status,
+                matchScore: res.matchScore
             });
         }
     }
 
-    const topFive = (eligibleSchemes.length > 0 ? eligibleSchemes : schemes).slice(0, 5);
+    const combinedList = [...fullyEligible, ...docsPending];
+    const topFive = (combinedList.length > 0 ? combinedList : schemes).slice(0, 5);
 
     // ─── STATE 1: INITIAL / GREETING ────────────────────────────
     if (upperInput === "HI" || upperInput === "START" || upperInput === "NAMASTE" || upperInput === "ALERT") {
         const userName = user?.name ? user.name.split(" ")[0] : "Citizen";
-        const docCount = user?.documents?.length || 1;
+        const docCount = user?.documents?.length || 0;
 
         return {
-            replyText: `🇮🇳 *SMART BENEFICIARY MAPPING SYSTEM (Govt of India)*\n━━━━━━━━━━━━━━━━━━━━\n🙏 *Namaste ${userName}!*\n\n✅ Your *Document Vault* has been analyzed (${docCount} certificate${docCount > 1 ? "s" : ""} verified).\n🎉 Based on your demographic profile & proofs, you qualify for *${eligibleSchemes.length || 14} Government Schemes* (Unlocked Value: *₹6,51,000/year*).\n\n💬 *Reply with SHOW to view your top matching schemes.*`,
+            replyText: `🇮🇳 *SMART BENEFICIARY MAPPING SYSTEM (Govt of India)*\n━━━━━━━━━━━━━━━━━━━━\n🙏 *Namaste ${userName}!*\n\n✅ Your *Document Vault* has been analyzed (${docCount} certificate${docCount === 1 ? "" : "s"} verified).\n🎉 Based on your demographic profile & proofs, you qualify for *${combinedList.length || 12} Government Schemes*.\n\n💬 *Reply with SHOW to view your top matching schemes.*`,
             quickButtons: ["SHOW", "🔍 Search Scheme", "📞 Helpline"],
             actionType: "INITIAL_ALERT"
         };
     }
 
     // ─── STATE 2: STEP 2 - USER SAYS "SHOW" / "LIST" ───────────
-    if (upperInput === "SHOW" || upperInput === "LIST" || upperInput === "SCHEMES" || upperInput.includes("SHOW MY SCHEMES")) {
+    if (upperInput === "SHOW" || upperInput === "LIST" || upperInput === "SCHEMES" || upperInput.includes("SHOW MY SCHEMES") || upperInput.includes("MY SCHEMES")) {
         let menuText = `📋 *Your Top Eligible Welfare Schemes:*\n━━━━━━━━━━━━━━━━━━━━\n`;
 
         topFive.forEach((s, idx) => {
             const numberIcons = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣"];
             const icon = numberIcons[idx] || `${idx + 1}.`;
-            const shortBenefit = s.benefits ? s.benefits.slice(0, 60).replace(/\*\*/g, "") : "Direct Financial Assistance";
-            menuText += `${icon} *${s.title}*\n   • Aid: ${shortBenefit}…\n\n`;
+            const shortBenefit = s.benefits ? s.benefits.slice(0, 65).replace(/\*\*/g, "").replace(/\n/g, " ") : "Direct Government Benefit";
+            const isFullyReady = s.status === "eligible";
+            const docBadge = isFullyReady ? "✅ _Ready to Apply_" : `⚠️ _${(s.missingDocs || []).length} Doc(s) Pending_`;
+            menuText += `${icon} *${s.title}*\n   • Aid: ${shortBenefit}…\n   • Status: ${docBadge}\n\n`;
         });
 
         menuText += `━━━━━━━━━━━━━━━━━━━━\n💬 *Reply with the number (e.g. 1, 2, 3) or scheme name to get full details, required documents checklist, and official portal application link.*`;
@@ -121,7 +128,7 @@ export async function processIncomingWhatsAppMessage(
     // ─── GENERAL KEYWORD / AI SEARCH FALLBACK ───────────────────
     const searchMatch = schemes.filter(s =>
         s.title.toLowerCase().includes(rawInput.toLowerCase()) ||
-        s.description.toLowerCase().includes(rawInput.toLowerCase())
+        (s.description && s.description.toLowerCase().includes(rawInput.toLowerCase()))
     );
 
     if (searchMatch.length > 0) {
@@ -141,24 +148,28 @@ export async function processIncomingWhatsAppMessage(
 }
 
 function buildSchemeDetailResponse(scheme: any, user: any): ConversationResponse {
-    const hasAadhaar = user?.documents?.some((d: any) => d.type === "aadhaar") ?? true;
-    const hasIncome = user?.documents?.some((d: any) => d.type === "income_cert") ?? true;
-    const hasDomicile = user?.documents?.some((d: any) => d.type === "domicile") ?? true;
+    const reqs = getSchemeDocumentRequirements(scheme).filter(r => r.needed);
+    const userDocs = user?.documents || [];
+    const checkDoc = (docKey: string) => userDocs.some((d: any) => d.type === docKey);
 
     let text = `🎓 *${scheme.title}*\n`;
     text += `━━━━━━━━━━━━━━━━━━━━\n`;
     text += `🏛️ *Category:* ${scheme.category?.name || "Central / State Welfare"}\n\n`;
-    text += `💰 *Benefits & Financial Aid:*\n${scheme.benefits ? scheme.benefits.slice(0, 220).replace(/\*\*/g, "") : "Direct DBT grant transferred to bank account."}\n\n`;
+    text += `💰 *Benefits & Financial Aid:*\n${scheme.benefits ? scheme.benefits.slice(0, 220).replace(/\*\*/g, "").replace(/\n+/g, " ") : "Direct DBT grant transferred to bank account."}\n\n`;
 
-    text += `📄 *Your Document Vault Status:*\n`;
-    text += `${hasAadhaar ? "✅" : "⚠️"} Aadhaar Card: ${hasAadhaar ? "Verified in Vault" : "Pending Upload"}\n`;
-    text += `${hasIncome ? "✅" : "⚠️"} Income Certificate: ${hasIncome ? "Verified in Vault" : "Pending Upload"}\n`;
-    text += `${hasDomicile ? "✅" : "⚠️"} Domicile Certificate: ${hasDomicile ? "Verified in Vault" : "Pending Upload"}\n\n`;
+    if (reqs.length > 0) {
+        text += `📄 *Required Documents & Vault Status:*\n`;
+        reqs.forEach(r => {
+            const has = checkDoc(r.key);
+            text += `${has ? "✅" : "❌"} ${r.label}: ${has ? "Ready in Vault" : "Missing / Upload Required"}\n`;
+        });
+        text += `\n`;
+    }
 
-    const portalLink = scheme.applyLink || "https://scholarships.gov.in";
-    text += `🔗 *Direct Official Application Portal:*\n👉 ${portalLink}\n\n`;
+    const portalLink = scheme.applyLink || `https://www.myscheme.gov.in/search?q=${encodeURIComponent(scheme.title)}`;
+    text += `🔗 *Official Application Portal:*\n👉 ${portalLink}\n\n`;
     text += `━━━━━━━━━━━━━━━━━━━━\n`;
-    text += `💡 _Click the official link above to submit directly. Zero middleman fees required!_`;
+    text += `💡 _Upload missing documents to your SBMS Document Vault (https://smart-beneficiary-mapping-system.vercel.app/documents) to complete zero-touch application!_`;
 
     return {
         replyText: text,
