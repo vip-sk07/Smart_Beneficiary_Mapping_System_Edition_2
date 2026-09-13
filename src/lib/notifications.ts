@@ -23,6 +23,7 @@ export interface DispatchResult {
     sentAt: string;
     status: "DELIVERED" | "QUEUED" | "SENT";
     contentSnippet: string;
+    waMeLink?: string;
 }
 
 /**
@@ -81,7 +82,8 @@ export async function sendAutomatedCitizenAlert(payload: AutomatedNotificationPa
         messageId,
         sentAt,
         status: "DELIVERED",
-        contentSnippet: messageBody
+        contentSnippet: messageBody,
+        waMeLink: `https://wa.me/${cleanPhone}?text=${encodeURIComponent(messageBody)}`
     };
 }
 

@@ -151,13 +151,37 @@ export default function WhatsAppGatewayPage() {
                 </div>
 
                 {lastDispatch && (
-                    <div style={{ marginTop: 18, padding: "14px 18px", background: "#f0fdf4", border: "1px solid #86efac", borderRadius: 10 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 800, color: "#166534", marginBottom: 4 }}>
-                            <CheckCircle2 size={16} /> Dispatched to {lastDispatch.recipientPhone}
+                    <div style={{ marginTop: 18, padding: "16px 18px", background: "#f0fdf4", border: "1.5px solid #86efac", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+                        <div>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13.5, fontWeight: 800, color: "#166534", marginBottom: 4 }}>
+                                <CheckCircle2 size={16} /> Dispatched to {lastDispatch.recipientPhone}
+                            </div>
+                            <div style={{ fontSize: 12, color: "#15803d", fontFamily: "monospace" }}>
+                                Ref ID: {lastDispatch.messageId} · Delivered At: {new Date(lastDispatch.sentAt).toLocaleTimeString()}
+                            </div>
                         </div>
-                        <div style={{ fontSize: 12, color: "#15803d", fontFamily: "monospace" }}>
-                            Ref ID: {lastDispatch.messageId} · Delivered At: {new Date(lastDispatch.sentAt).toLocaleTimeString()}
-                        </div>
+                        {lastDispatch.waMeLink && (
+                            <a
+                                href={lastDispatch.waMeLink}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: 6,
+                                    padding: "8px 14px",
+                                    borderRadius: 8,
+                                    background: "#16a34a",
+                                    color: "white",
+                                    fontSize: 12.5,
+                                    fontWeight: 700,
+                                    textDecoration: "none",
+                                    boxShadow: "0 2px 6px rgba(22, 163, 74, 0.25)"
+                                }}
+                            >
+                                <MessageSquare size={14} /> Open in WhatsApp Web / App
+                            </a>
+                        )}
                     </div>
                 )}
             </div>
