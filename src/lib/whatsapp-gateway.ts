@@ -193,19 +193,127 @@ const processedMessageIds = new Set<string>();
     return sock;
 }
 
+import QRCode from "qrcode";
+
 let ipcServerStarted = false;
 function startIPCServer() {
     if (ipcServerStarted) return;
     ipcServerStarted = true;
 
     const server = http.createServer(async (req, res) => {
-        if (req.method === "GET" && (req.url === "/" || req.url === "/health")) {
+        const reqUrl = req.url || "/";
+        const parsedUrl = new URL(reqUrl, "http://localhost");
+
+        // 1. Health API check
+        if (req.method === "GET" && parsedUrl.pathname === "/health") {
             res.writeHead(200, { "Content-Type": "application/json" });
             res.end(JSON.stringify({ status: "ok", gateway: connectionStatus, service: "SBMS WhatsApp Gateway", timestamp: new Date().toISOString() }));
             return;
         }
 
-        if (req.method === "POST" && req.url === "/send") {
+        // 2. 8-Digit Pairing Code API (Link with Phone Number instead of camera)
+        if (req.method === "GET" && parsedUrl.pathname === "/pair") {
+            const rawPhone = parsedUrl.searchParams.get("phone") || "9384102655";
+            let cleanPhone = rawPhone.replace(/\D/g, "");
+            if (cleanPhone.length === 10) cleanPhone = "91" + cleanPhone;
+
+            try {
+                if (sock && !sock.authState.creds.registered) {
+                    const code = await sock.requestPairingCode(cleanPhone);
+                    res.writeHead(200, { "Content-Type": "application/json" });
+                    res.end(JSON.stringify({ success: true, phone: cleanPhone, pairingCode: code }));
+                    return;
+                } else if (sock && sock.authState.creds.registered) {
+                    res.writeHead(200, { "Content-Type": "application/json" });
+                    res.end(JSON.stringify({ status: "ALREADY_CONNECTED", message: "WhatsApp Gateway is already connected!" }));
+                    return;
+                }
+            } catch (pairErr: any) {
+                res.writeHead(500, { "Content-Type": "application/json" });
+                res.end(JSON.stringify({ error: pairErr.message || "Failed to generate pairing code" }));
+                return;
+            }
+        }
+
+        // 3. Visual Web QR Page (GET / and GET /qr)
+        if (req.method === "GET" && (parsedUrl.pathname === "/" || parsedUrl.pathname === "/qr")) {
+            res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+
+            if (connectionStatus === "CONNECTED") {
+                res.end(`<!DOCTYPE html>
+<html>
+<head>
+    <title>SBMS WhatsApp Gateway - Connected</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: white; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
+        .card { background: #1e293b; border: 1.5px solid #334155; border-radius: 20px; padding: 36px 32px; max-width: 440px; text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.4); }
+        .badge { display: inline-block; background: #064e3b; color: #34d399; font-weight: 700; font-size: 13px; padding: 6px 16px; border-radius: 99px; margin-bottom: 16px; border: 1px solid #059669; }
+        h1 { font-size: 22px; margin: 0 0 10px; color: #f8fafc; }
+        p { font-size: 14px; color: #94a3b8; line-height: 1.6; margin: 0; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="badge">● GATEWAY ONLINE & CONNECTED</div>
+        <h1>WhatsApp Gateway Active</h1>
+        <p>Your WhatsApp account is successfully linked. Automated scheme alerts are actively dispatched to registered beneficiaries.</p>
+    </div>
+</body>
+</html>`);
+                return;
+            }
+
+            let qrDataUrl = "";
+            if (currentQR) {
+                try {
+                    qrDataUrl = await QRCode.toDataURL(currentQR, { width: 300, margin: 2, color: { dark: "#0f172a", light: "#ffffff" } });
+                } catch {}
+            }
+
+            res.end(`<!DOCTYPE html>
+<html>
+<head>
+    <title>Link WhatsApp - SBMS Gateway</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="refresh" content="6">
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: white; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 20px; }
+        .card { background: #1e293b; border: 1.5px solid #334155; border-radius: 20px; padding: 32px 28px; max-width: 460px; text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.5); }
+        .qr-box { background: white; padding: 14px; border-radius: 14px; display: inline-block; margin: 18px 0; box-shadow: 0 8px 20px rgba(0,0,0,0.3); }
+        .qr-box img { display: block; width: 280px; height: 280px; }
+        h1 { font-size: 20px; margin: 0 0 8px; color: #f8fafc; }
+        p { font-size: 13.5px; color: #94a3b8; line-height: 1.5; margin: 0 0 16px; }
+        .instructions { text-align: left; background: #0f172a; padding: 14px 18px; border-radius: 12px; font-size: 12.5px; color: #cbd5e1; line-height: 1.7; border: 1px solid #334155; }
+        .instructions ol { margin: 0; padding-left: 18px; }
+        .badge { display: inline-block; background: #78350f; color: #fbbf24; font-weight: 700; font-size: 12px; padding: 4px 12px; border-radius: 99px; margin-bottom: 12px; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="badge">📲 SCAN TO CONNECT GATEWAY</div>
+        <h1>Link WhatsApp to SBMS</h1>
+        <p>Scan this crisp QR code on your phone to link your WhatsApp account.</p>
+        
+        <div class="qr-box">
+            ${qrDataUrl ? `<img src="${qrDataUrl}" alt="WhatsApp QR Code" />` : `<div style="width:280px;height:280px;display:flex;align-items:center;justify-content:center;color:#64748b;font-weight:600">Generating QR Code...</div>`}
+        </div>
+
+        <div class="instructions">
+            <strong>How to link:</strong>
+            <ol>
+                <li>Open <strong>WhatsApp</strong> on your phone</li>
+                <li>Tap <strong>Settings / ⋮ Menu</strong> → <strong>Linked Devices</strong></li>
+                <li>Tap <strong>Link a Device</strong> and point your camera at this QR code</li>
+            </ol>
+        </div>
+    </div>
+</body>
+</html>`);
+            return;
+        }
+
+        if (req.method === "POST" && parsedUrl.pathname === "/send") {
             let body = "";
             req.on("data", chunk => { body += chunk; });
             req.on("end", async () => {
