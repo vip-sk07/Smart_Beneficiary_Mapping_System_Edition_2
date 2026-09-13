@@ -31,7 +31,7 @@ let currentQR: string | null = null;
 let connectionStatus: "DISCONNECTED" | "SCAN_QR" | "CONNECTED" = "DISCONNECTED";
 
 const AUTH_DIR = path.join(process.cwd(), ".auth_whatsapp");
-const IPC_PORT = 3002;
+const IPC_PORT = process.env.PORT ? parseInt(process.env.PORT) : 3002;
 
 export function getGatewayStatus() {
     return {
@@ -199,6 +199,12 @@ function startIPCServer() {
     ipcServerStarted = true;
 
     const server = http.createServer(async (req, res) => {
+        if (req.method === "GET" && (req.url === "/" || req.url === "/health")) {
+            res.writeHead(200, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ status: "ok", gateway: connectionStatus, service: "SBMS WhatsApp Gateway", timestamp: new Date().toISOString() }));
+            return;
+        }
+
         if (req.method === "POST" && req.url === "/send") {
             let body = "";
             req.on("data", chunk => { body += chunk; });

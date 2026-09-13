@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: sbms-whatsapp-gateway
+    env: node
+    plan: free
+    buildCommand: npm install && npx prisma generate
+    startCommand: npm run whatsapp
+    envVars:
+      - key: NODE_ENV
+        value: production
