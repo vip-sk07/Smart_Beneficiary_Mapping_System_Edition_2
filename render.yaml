@@ -8,3 +8,9 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      - key: DATABASE_URL
+        value: postgresql://neondb_owner:npg_QhbpFA3r0uTk@ep-winter-meadow-a19fcj8w-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require
+      - key: DIRECT_URL
+        value: postgresql://neondb_owner:npg_QhbpFA3r0uTk@ep-winter-meadow-a19fcj8w-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require
+      - key: NEXTAUTH_URL
+        value: https://smart-beneficiary-mapping-system.vercel.app

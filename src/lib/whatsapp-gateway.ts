@@ -165,13 +165,21 @@ const botSentMessageIds = new Set<string>();
                     targets.add(remoteJid.split(":")[0] + "@s.whatsapp.net");
                 }
 
-                // 2. Add authenticated socket owner JID (for self-chat & testing)
-                if (myNumber) {
-                    const cleanMy = myNumber.length === 10 ? `91${myNumber}` : myNumber;
-                    targets.add(`${cleanMy}@s.whatsapp.net`);
+                // 2. If participant exists and is a standard phone JID
+                const participant = m.key.participant || (m as any).participant || "";
+                if (participant && participant.endsWith("@s.whatsapp.net")) {
+                    targets.add(participant.split(":")[0] + "@s.whatsapp.net");
                 }
 
-                // 3. If remote digits are a 10-digit phone number (and not an LID), add 91 prefix
+                // 3. Add authenticated socket owner JID (for self-chat & testing)
+                if (fromMe || !remoteJid.endsWith("@s.whatsapp.net")) {
+                    if (myNumber) {
+                        const cleanMy = myNumber.length === 10 ? `91${myNumber}` : myNumber;
+                        targets.add(`${cleanMy}@s.whatsapp.net`);
+                    }
+                }
+
+                // 4. If remote digits are a 10-digit phone number (and not an LID), add 91 prefix
                 if (cleanPhone10 && cleanPhone10.length === 10 && !remoteJid.endsWith("@lid")) {
                     targets.add(`91${cleanPhone10}@s.whatsapp.net`);
                 }
@@ -399,11 +407,13 @@ const botSentMessageIds = new Set<string>();
                 try {
                     let appToUse: any = null;
                     if (citizenId) {
-                        appToUse = await prisma.application.findFirst({
-                            where: { userId: citizenId },
-                            include: { scheme: true, user: true },
-                            orderBy: { submittedAt: "desc" }
-                        });
+                        try {
+                            appToUse = await prisma.application.findFirst({
+                                where: { userId: citizenId },
+                                include: { scheme: true, user: true },
+                                orderBy: { submittedAt: "desc" }
+                            });
+                        } catch {}
                     }
 
                     if (!appToUse) {
