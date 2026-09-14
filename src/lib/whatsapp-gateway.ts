@@ -26,6 +26,7 @@ import fs from "fs";
 import http from "http";
 import { prisma } from "@/lib/prisma";
 import { processIncomingWhatsAppMessage } from "@/lib/whatsapp-conversation";
+import { generateAckSlipBuffer } from "./ack-pdf";
 
 let sock: WASocket | null = null;
 let currentQR: string | null = null;
@@ -202,14 +203,14 @@ function extractMessageText(msg: any): string {
             const fromMe = m.key.fromMe;
             addLog(`📩 Msg item: id=${msgId}, fromMe=${fromMe}, remoteJid=${remoteJid}`);
 
-            if (!msgId || processedMessageIds.has(msgId) || botSentMessageIds.has(msgId)) {
-                addLog(`⏭️ Skipped: duplicate msgId or botSentMessageId (${msgId})`);
+            if (!msgId || botSentMessageIds.has(msgId)) {
+                addLog(`⏭️ Skipped: botSentMessageId (${msgId})`);
                 continue;
             }
-            processedMessageIds.add(msgId);
-            if (processedMessageIds.size > 2000) {
-                const first = processedMessageIds.values().next().value;
-                if (first) processedMessageIds.delete(first);
+
+            if (processedMessageIds.has(msgId)) {
+                addLog(`⏭️ Skipped: already processed msgId (${msgId})`);
+                continue;
             }
 
             if (!remoteJid) continue;
@@ -318,8 +319,15 @@ function extractMessageText(msg: any): string {
             const actualMsg = recursivelyUnwrapMessage(m.message);
 
             if (!actualMsg) {
-                addLog(`⏭️ Skipped: no message payload in msg item (${msgId})`);
+                addLog(`⏭️ Skipped: no message payload in msg item (${msgId}) - awaiting decrypted payload`);
                 continue;
+            }
+
+            // Mark message as processed now that payload is confirmed
+            processedMessageIds.add(msgId);
+            if (processedMessageIds.size > 2000) {
+                const first = processedMessageIds.values().next().value;
+                if (first) processedMessageIds.delete(first);
             }
 
             // ─── 1. GPS LOCATION MESSAGE HANDLER (e-Seva / CSC Center Matcher) ──
@@ -534,7 +542,6 @@ function extractMessageText(msg: any): string {
                     }
 
                     const refNo = appToUse.externalApplicationId || `SBMS-ACK-${appToUse.id.slice(-6).toUpperCase()}`;
-                    const { generateAckSlipBuffer } = await import("@/lib/ack-pdf");
                     const pdfBuf = generateAckSlipBuffer({
                         referenceId: refNo,
                         schemeTitle: appToUse.scheme.title,
@@ -545,12 +552,17 @@ function extractMessageText(msg: any): string {
                     });
 
                     addLog(`📄 Dispatched PDF slip to ${remoteJid}`);
-                    await dispatchReply({
+                    const sentDoc = await dispatchReply({
                         document: pdfBuf,
                         mimetype: "application/pdf",
                         fileName: `SBMS_Acknowledgment_${refNo}.pdf`,
                         caption: `🏛️ *OFFICIAL APPLICATION ACKNOWLEDGMENT SLIP*\n━━━━━━━━━━━━━━━━━━━━\n📌 *Scheme:* *${appToUse.scheme.title}*\n🎫 *Reference ID:* \`${refNo}\`\n✅ Signed & Deposited into Document Vault.`
                     });
+
+                    if (!sentDoc) {
+                        addLog(`⚠️ PDF dispatch unconfirmed, sending text slip fallback`);
+                        await dispatchReply(`🏛️ *OFFICIAL APPLICATION ACKNOWLEDGMENT SLIP*\n━━━━━━━━━━━━━━━━━━━━\n📌 *Scheme:* *${appToUse.scheme.title}*\n🎫 *Reference ID:* \`${refNo}\`\n👤 *Applicant:* ${appToUse.user?.name || "Karan Raj T"}\n🏛️ *Portal:* ${appToUse.externalPortal || "Autonomous Welfare Gateway"}\n📅 *Submitted:* ${new Date(appToUse.submittedAt).toLocaleDateString("en-IN")}\n✅ *Status:* SUBMITTED & VERIFIED VIA AUTONOMOUS AGENT\n\n🔗 *Download PDF Online:* https://smart-beneficiary-mapping-system.vercel.app/applications`);
+                    }
                     continue;
                 } catch (slipErr) {
                     addLog(`⚠️ Error generating PDF slip: ${slipErr}`);
@@ -624,7 +636,7 @@ function startIPCServer() {
                 res.end();
                 return;
             }
-            res.end(JSON.stringify({ status: "ok", gateway: connectionStatus, service: "SBMS WhatsApp Gateway", build: "v2.3-profile-sync", timestamp: new Date().toISOString() }));
+            res.end(JSON.stringify({ status: "ok", gateway: connectionStatus, service: "SBMS WhatsApp Gateway", build: "v2.4-slip-fix", timestamp: new Date().toISOString() }));
             return;
         }
 
