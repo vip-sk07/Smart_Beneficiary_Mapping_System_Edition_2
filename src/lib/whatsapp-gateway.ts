@@ -122,6 +122,76 @@ export async function initWhatsAppGateway() {
 const processedMessageIds = new Set<string>();
 const botSentMessageIds = new Set<string>();
 
+function recursivelyUnwrapMessage(rawMsg: any): any {
+    let current = rawMsg;
+    let depth = 0;
+    while (current && depth < 10) {
+        depth++;
+        if (current.deviceSentMessage?.message) {
+            current = current.deviceSentMessage.message;
+        } else if (current.ephemeralMessage?.message) {
+            current = current.ephemeralMessage.message;
+        } else if (current.viewOnceMessage?.message) {
+            current = current.viewOnceMessage.message;
+        } else if (current.viewOnceMessageV2?.message) {
+            current = current.viewOnceMessageV2.message;
+        } else if (current.viewOnceMessageV2Extension?.message) {
+            current = current.viewOnceMessageV2Extension.message;
+        } else if (current.documentWithCaptionMessage?.message) {
+            current = current.documentWithCaptionMessage.message;
+        } else if (current.deviceSyncMessage?.message) {
+            current = current.deviceSyncMessage.message;
+        } else if (current.editedMessage?.message?.protocolMessage?.editedMessage) {
+            current = current.editedMessage.message.protocolMessage.editedMessage;
+        } else if (current.protocolMessage?.editedMessage) {
+            current = current.protocolMessage.editedMessage;
+        } else if (current.message && typeof current.message === "object") {
+            current = current.message;
+        } else {
+            break;
+        }
+    }
+    return current;
+}
+
+function extractMessageText(msg: any): string {
+    if (!msg) return "";
+    if (typeof msg.conversation === "string" && msg.conversation.trim()) {
+        return msg.conversation.trim();
+    }
+    if (typeof msg.extendedTextMessage?.text === "string" && msg.extendedTextMessage.text.trim()) {
+        return msg.extendedTextMessage.text.trim();
+    }
+    if (typeof msg.buttonsResponseMessage?.selectedButtonId === "string") {
+        return msg.buttonsResponseMessage.selectedButtonId.trim();
+    }
+    if (typeof msg.buttonsResponseMessage?.selectedDisplayText === "string") {
+        return msg.buttonsResponseMessage.selectedDisplayText.trim();
+    }
+    if (typeof msg.listResponseMessage?.singleSelectReply?.selectedRowId === "string") {
+        return msg.listResponseMessage.singleSelectReply.selectedRowId.trim();
+    }
+    if (typeof msg.templateButtonReplyMessage?.selectedId === "string") {
+        return msg.templateButtonReplyMessage.selectedId.trim();
+    }
+    if (typeof msg.interactiveResponseMessage?.nativeFlowResponseMessage?.paramsJson === "string") {
+        try {
+            const p = JSON.parse(msg.interactiveResponseMessage.nativeFlowResponseMessage.paramsJson);
+            if (p?.id) return String(p.id).trim();
+        } catch {}
+    }
+    if (typeof msg.imageMessage?.caption === "string" && msg.imageMessage.caption.trim()) {
+        return msg.imageMessage.caption.trim();
+    }
+    if (typeof msg.documentMessage?.caption === "string" && msg.documentMessage.caption.trim()) {
+        return msg.documentMessage.caption.trim();
+    }
+    if (typeof msg.videoMessage?.caption === "string" && msg.videoMessage.caption.trim()) {
+        return msg.videoMessage.caption.trim();
+    }
+    return "";
+}
+
     // Handle Incoming Messages with LID & Phone Resolution
     sock.ev.on("messages.upsert", async ({ messages, type }) => {
         addLog(`⚡ messages.upsert event: type=${type}, count=${messages.length}`);
@@ -184,6 +254,12 @@ const botSentMessageIds = new Set<string>();
                     targets.add(`91${cleanPhone10}@s.whatsapp.net`);
                 }
 
+                // 5. If destinationJid exists on deviceSentMessage and is a phone JID
+                const deviceDestJid = (m.message as any)?.deviceSentMessage?.destinationJid || "";
+                if (deviceDestJid && deviceDestJid.endsWith("@s.whatsapp.net")) {
+                    targets.add(deviceDestJid.split(":")[0] + "@s.whatsapp.net");
+                }
+
                 addLog(`🎯 Dispatching to targets: [${Array.from(targets).join(", ")}]`);
 
                 let sentCount = 0;
@@ -208,15 +284,13 @@ const botSentMessageIds = new Set<string>();
             // Resolve Citizen Profile by Phone if available
             let citizenId: string | undefined = undefined;
 
-            // Unwrap any nested or ephemeral WhatsApp messages
-            const actualMsg =
-                m.message?.ephemeralMessage?.message ||
-                m.message?.viewOnceMessage?.message ||
-                m.message?.viewOnceMessageV2?.message ||
-                m.message?.documentWithCaptionMessage?.message ||
-                m.message;
+            // Recursively unwrap any nested or device-sent WhatsApp messages
+            const actualMsg = recursivelyUnwrapMessage(m.message);
 
-            if (!actualMsg) continue;
+            if (!actualMsg) {
+                addLog(`⏭️ Skipped: no message payload in msg item (${msgId})`);
+                continue;
+            }
 
             // ─── 1. GPS LOCATION MESSAGE HANDLER (e-Seva / CSC Center Matcher) ──
             if (actualMsg.locationMessage) {
@@ -271,7 +345,7 @@ const botSentMessageIds = new Set<string>();
             if (actualMsg.audioMessage) {
                 try {
                     console.log(`[WHATSAPP VOICE] 🎙️ Processing Voice Note from ${remoteJid}...`);
-                    const audioBuffer = await downloadMediaMessage(m, "buffer", {});
+                    const audioBuffer = await downloadMediaMessage({ key: m.key, message: actualMsg } as any, "buffer", {});
                     const mimeType = actualMsg.audioMessage.mimetype || "audio/ogg";
 
                     const { transcribeCitizenVoiceNote } = await import("@/lib/bhashini");
@@ -290,19 +364,11 @@ const botSentMessageIds = new Set<string>();
             }
 
             // ─── 3. TEXT MESSAGE PROCESSING & PDF SLIP DELIVERY ────────────────
-            const messageContent =
-                actualMsg.conversation ||
-                actualMsg.extendedTextMessage?.text ||
-                actualMsg.buttonsResponseMessage?.selectedButtonId ||
-                actualMsg.listResponseMessage?.singleSelectReply?.selectedRowId ||
-                actualMsg.templateButtonReplyMessage?.selectedId ||
-                actualMsg.imageMessage?.caption ||
-                actualMsg.documentMessage?.caption ||
-                "";
+            const text = extractMessageText(actualMsg);
 
-            const text = messageContent.trim();
             if (!text) {
-                addLog(`⏭️ Skipped: empty text content`);
+                const keys = Object.keys(actualMsg || {});
+                addLog(`⏭️ Skipped: empty text content. Keys: [${keys.join(", ")}]`);
                 continue;
             }
 
