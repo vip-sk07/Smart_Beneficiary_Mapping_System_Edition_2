@@ -140,10 +140,53 @@ const processedMessageIds = new Set<string>();
             // Extract command text
             const upper = text.toUpperCase();
             const isCommand = [
-                "SHOW", "1", "2", "3", "4", "5", "SCHEMES", "STATUS", "HELP", 
-                "ALERT", "START", "NAMASTE", "HI", "HELLO", "LIST"
-            ].includes(upper) || upper.includes("SHOW MY SCHEMES") || upper.includes("MY SCHEMES");
-            const isSchemeQuery = upper.includes("SCHEME") || upper.includes("SCHOLARSHIP") || upper.includes("FARMER") || upper.includes("LOAN") || upper.includes("PENSION");
+                "SHOW", "1", "2", "3", "4", "5", "6", "7", "8", "9", "SCHEMES", 
+                "STATUS", "TRACK", "APP", "APPS", "APPLICATION", "APPLICATIONS",
+                "HELP", "MENU", "COMMANDS", "?", "ALERT", "START", "NAMASTE", "HI", "HELLO", "LIST",
+                "VAULT", "DOC", "DOCS", "DOCUMENT", "DOCUMENTS", "CERTIFICATE", "CERTIFICATES",
+                "COMPLAINT", "GRIEVANCE", "GRIEVANCES", "REPORT", "SUPPORT",
+                "FARMER", "AGRICULTURE", "STUDENT", "SCHOLARSHIP", "EDUCATION",
+                "WOMEN", "LADIES", "HEALTH", "MEDICAL", "HOUSING", "HOME",
+                "LOAN", "BUSINESS", "MSME", "PENSION", "SENIOR", "DISABILITY", "DIVYANG",
+                "TAMIL", "HINDI", "ENGLISH"
+            ].includes(upper) ||
+            upper.includes("SHOW MY SCHEMES") ||
+            upper.includes("MY SCHEMES") ||
+            upper.includes("SHOW SCHEMES") ||
+            upper.startsWith("STATUS") ||
+            upper.startsWith("TRACK") ||
+            upper.startsWith("COMPLAINT") ||
+            upper.startsWith("GRIEVANCE") ||
+            upper.startsWith("REPORT") ||
+            upper.startsWith("VAULT") ||
+            upper.startsWith("DOC") ||
+            upper.startsWith("SBMS-") ||
+            upper.startsWith("ACK-") ||
+            upper.startsWith("GRV-") ||
+            upper.startsWith("APP-") ||
+            text.includes("வணக்கம்") ||
+            text.includes("திட்டம்") ||
+            text.includes("விவசாயி") ||
+            text.includes("மாணவர்") ||
+            text.includes("नमस्ते") ||
+            text.includes("योजना") ||
+            text.includes("मदद") ||
+            text.includes("शिकायत");
+
+            const isSchemeQuery = 
+                upper.includes("SCHEME") || 
+                upper.includes("SCHOLARSHIP") || 
+                upper.includes("FARMER") || 
+                upper.includes("LOAN") || 
+                upper.includes("PENSION") || 
+                upper.includes("SUBSIDY") ||
+                upper.includes("GRANT") ||
+                upper.includes("BENEFIT") ||
+                upper.includes("HOUSING") ||
+                upper.includes("HEALTH") ||
+                upper.includes("DISABILITY") ||
+                upper.includes("WOMEN") ||
+                upper.includes("STUDENT");
 
             // IF CASUAL PERSONAL CHAT -> IGNORE COMPLETELY (DO NOTHING)
             if (!isCommand && !isSchemeQuery) {
@@ -434,7 +477,7 @@ export async function sendRealWhatsAppMessage(recipientPhone: string, messageTex
         if (clean.length === 10) clean = "91" + clean;
 
         // ── 1. Remote Hosted Baileys Gateway (e.g. Railway / Render / VPS / Ngrok) ──
-        const remoteGatewayUrl = process.env.WHATSAPP_GATEWAY_URL;
+        const remoteGatewayUrl = process.env.WHATSAPP_GATEWAY_URL || "https://smart-beneficiary-mapping-system-edition.onrender.com";
         if (remoteGatewayUrl) {
             try {
                 const targetUrl = remoteGatewayUrl.endsWith("/send") ? remoteGatewayUrl : `${remoteGatewayUrl.replace(/\/$/, "")}/send`;

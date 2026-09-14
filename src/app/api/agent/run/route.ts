@@ -167,6 +167,26 @@ export async function POST(req: NextRequest) {
             },
         });
 
+        // 7. Dispatch Autonomous WhatsApp Citizen Alert
+        const citizenPhone = user.phone;
+        if (citizenPhone) {
+            (async () => {
+                try {
+                    const { sendAutomatedCitizenAlert } = await import("@/lib/notifications");
+                    await sendAutomatedCitizenAlert({
+                        userId: session.user.id,
+                        phone: citizenPhone,
+                        schemeTitle: scheme.title,
+                        schemeBenefit: scheme.benefits ? scheme.benefits.slice(0, 120).replace(/\*\*/g, "") : "Welfare Benefits",
+                        portalLink: `${baseUrl}/applications`,
+                        triggerReason: "APPLICATION_SUBMITTED"
+                    });
+                } catch (bgErr) {
+                    console.error("[BG AUTO-WHATSAPP AGENT RUN SUBMIT ERROR]", bgErr);
+                }
+            })();
+        }
+
         return NextResponse.json({
             success: true,
             status: "COMPLETED",

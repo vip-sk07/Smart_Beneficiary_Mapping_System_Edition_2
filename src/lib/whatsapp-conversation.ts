@@ -4,7 +4,7 @@ import { checkSchemeEligibility, getSchemeDocumentRequirements } from "@/lib/eli
 export interface ConversationResponse {
     replyText: string;
     quickButtons?: string[];
-    actionType?: "INITIAL_ALERT" | "SCHEME_MENU" | "SCHEME_DETAIL" | "AI_CONVERSATION";
+    actionType?: "INITIAL_ALERT" | "SCHEME_MENU" | "SCHEME_DETAIL" | "STATUS_TRACKING" | "VAULT_AUDIT" | "GRIEVANCE" | "CATEGORY_FILTER" | "HELP_MENU" | "AI_CONVERSATION";
 }
 
 export async function processIncomingWhatsAppMessage(
@@ -13,20 +13,41 @@ export async function processIncomingWhatsAppMessage(
 ): Promise<ConversationResponse> {
     const rawInput = userMessage.trim();
     const upperInput = rawInput.toUpperCase();
+    const baseUrl = process.env.NEXTAUTH_URL || "https://smart-beneficiary-mapping-system.vercel.app";
 
-    // 1. Fetch user and their documents if userId is available
+    // 1. Fetch citizen profile, documents, applications, and grievances
     let user: any = null;
     if (userId) {
         user = await prisma.user.findUnique({
             where: { id: userId },
-            include: { documents: true }
+            include: {
+                documents: true,
+                applications: {
+                    include: { scheme: { include: { category: true } } },
+                    orderBy: { submittedAt: "desc" }
+                },
+                grievances: {
+                    orderBy: { createdAt: "desc" },
+                    take: 5
+                }
+            }
         });
     }
 
     if (!user) {
         user = await prisma.user.findFirst({
             where: { role: "USER" },
-            include: { documents: true }
+            include: {
+                documents: true,
+                applications: {
+                    include: { scheme: { include: { category: true } } },
+                    orderBy: { submittedAt: "desc" }
+                },
+                grievances: {
+                    orderBy: { createdAt: "desc" },
+                    take: 5
+                }
+            }
         });
     }
 
@@ -39,18 +60,24 @@ export async function processIncomingWhatsAppMessage(
             dob: new Date("2002-05-15"),
             income: 120000,
             occupation: "Student",
-            documents: []
+            documents: [],
+            applications: [],
+            grievances: []
         };
     }
 
-    // 2. Fetch all active schemes for complete matching
+    const userName = user?.name ? user.name.split(" ")[0] : "Citizen";
+    const userDocs = user?.documents || [];
+    const userApps = user?.applications || [];
+
+    // 2. Fetch all active schemes for smart matching
     const schemes = await prisma.scheme.findMany({
         where: { isActive: true },
         orderBy: { createdAt: "desc" },
         include: { category: true }
     });
 
-    // Compute eligible schemes
+    // Compute eligible schemes for this citizen
     const fullyEligible: any[] = [];
     const docsPending: any[] = [];
 
@@ -78,22 +105,242 @@ export async function processIncomingWhatsAppMessage(
     const combinedList = [...fullyEligible, ...docsPending];
     const topFive = (fullyEligible.length >= 5 ? fullyEligible : (combinedList.length > 0 ? combinedList : schemes)).slice(0, 5);
 
-    // ─── STATE 1: INITIAL / GREETING ────────────────────────────
-    if (upperInput === "HI" || upperInput === "START" || upperInput === "NAMASTE" || upperInput === "ALERT") {
-        const userName = user?.name ? user.name.split(" ")[0] : "Citizen";
-        const docCount = user?.documents?.length || 0;
+    // ─── COMMAND 1: GREETINGS & INITIAL ALERT ────────────────────────────
+    if (
+        upperInput === "HI" || upperInput === "START" || upperInput === "NAMASTE" || 
+        upperInput === "ALERT" || upperInput === "HELLO" || upperInput === "VANAKKAM" || 
+        upperInput === "வணக்கம்" || upperInput === "नमस्ते" || upperInput === "प्रणाम"
+    ) {
+        const totalEligible = fullyEligible.length > 0 ? fullyEligible.length : combinedList.length;
+        const appCount = userApps.length;
+
+        let greetingText = `🇮🇳 *SMART BENEFICIARY MAPPING SYSTEM (SBMS)*\n`;
+        greetingText += `*Autonomous Welfare & DBT Gateway*\n`;
+        greetingText += `━━━━━━━━━━━━━━━━━━━━\n`;
+        greetingText += `🙏 *Namaste ${userName}!* \n\n`;
+        greetingText += `✅ *Vault Verified:* ${userDocs.length} certificate${userDocs.length === 1 ? "" : "s"} on record\n`;
+        greetingText += `🎉 *Welfare Match:* Pre-qualified for *${totalEligible} Schemes*\n`;
+        if (appCount > 0) {
+            greetingText += `📝 *Active Applications:* ${appCount} tracked in real-time\n`;
+        }
+        greetingText += `\n━━━━━━━━━━━━━━━━━━━━\n`;
+        greetingText += `⚡ *Quick Actions (Reply with keyword):*\n`;
+        greetingText += `• *SHOW* — View top eligible welfare schemes\n`;
+        greetingText += `• *STATUS* — Track submitted applications & DBT\n`;
+        greetingText += `• *VAULT* — Audit your Document Vault proofs\n`;
+        greetingText += `• *COMPLAINT* — Lodge official welfare grievance\n`;
+        greetingText += `• *HELP* — Show full command guide\n\n`;
+        greetingText += `💬 _Or reply with_ *FARMER*, *STUDENT*, *WOMEN*, *HEALTH* _to browse by category._`;
 
         return {
-            replyText: `🇮🇳 *SMART BENEFICIARY MAPPING SYSTEM (Govt of India)*\n━━━━━━━━━━━━━━━━━━━━\n🙏 *Namaste ${userName}!*\n\n✅ Your *Document Vault* has been analyzed (${docCount} certificate${docCount === 1 ? "" : "s"} verified).\n🎉 Based on your demographic profile & proofs, you qualify for *${fullyEligible.length > 0 ? fullyEligible.length : combinedList.length} Government Schemes* (${docsPending.length} with documents pending).\n\n💬 *Reply with SHOW to view your top matching schemes.*`,
-            quickButtons: ["SHOW", "🔍 Search Scheme", "📞 Helpline"],
+            replyText: greetingText,
+            quickButtons: ["SHOW", "STATUS", "VAULT", "HELP"],
             actionType: "INITIAL_ALERT"
         };
     }
 
-    // ─── STATE 2: STEP 2 - USER SAYS "SHOW" / "LIST" ───────────
-    if (upperInput === "SHOW" || upperInput === "LIST" || upperInput === "SCHEMES" || upperInput.includes("SHOW MY SCHEMES") || upperInput.includes("MY SCHEMES") || upperInput.includes("SHOW SCHEMES")) {
+    // ─── COMMAND 2: LIVE APPLICATION TRACKING (STATUS / TRACK) ───────────
+    if (
+        upperInput === "STATUS" || upperInput === "TRACK" || upperInput === "APPS" || 
+        upperInput === "APPLICATION" || upperInput === "APPLICATIONS" || 
+        upperInput === "MY APPLICATIONS" || upperInput === "MY STATUS" ||
+        upperInput === "நிலை" || upperInput === "स्थिति"
+    ) {
+        if (!userApps || userApps.length === 0) {
+            return {
+                replyText: `📋 *SBMS APPLICATION TRACKER*\n━━━━━━━━━━━━━━━━━━━━\nℹ️ *No Active Applications Found*\n\nYou haven't submitted any welfare applications yet.\n\n🎯 *Next Steps:* Reply with *SHOW* to discover schemes tailored to your profile and apply with our Zero-Touch Agent!\n\n🔗 *Browse Schemes:* ${baseUrl}/schemes`,
+                quickButtons: ["SHOW", "VAULT", "HELP"],
+                actionType: "STATUS_TRACKING"
+            };
+        }
+
+        let statusText = `📋 *YOUR SBMS APPLICATION DASHBOARD (${userApps.length}):*\n━━━━━━━━━━━━━━━━━━━━\n`;
+
+        userApps.slice(0, 5).forEach((app: any, idx: number) => {
+            const statusIcons: Record<string, string> = {
+                APPROVED: "🟢 *APPROVED*",
+                PENDING: "🟡 *UNDER VERIFICATION*",
+                UNDER_REVIEW: "🔵 *IN REVIEW*",
+                REJECTED: "🔴 *ACTION REQUIRED*"
+            };
+            const badge = statusIcons[app.status] || `⏳ *${app.status}*`;
+            const refNo = app.externalApplicationId || `SBMS-APP-${app.id.slice(-6).toUpperCase()}`;
+            const subDate = new Date(app.submittedAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+            const portal = app.externalPortal || "State/Central Portal";
+
+            statusText += `${idx + 1}. 🏛️ *${app.scheme.title}*\n`;
+            statusText += `   • Status: ${badge}\n`;
+            statusText += `   • Ref No: \`${refNo}\`\n`;
+            statusText += `   • Portal: ${portal}\n`;
+            statusText += `   • Lodged: ${subDate}\n`;
+            if (app.notes) {
+                statusText += `   • Remark: _${app.notes.slice(0, 60)}_\n`;
+            }
+            statusText += `\n`;
+        });
+
+        statusText += `━━━━━━━━━━━━━━━━━━━━\n`;
+        statusText += `🔗 *Download Slips:* ${baseUrl}/applications\n`;
+        statusText += `💬 _Reply with any Ref No (e.g. SBMS-ACK-...) for single tracking._`;
+
+        return {
+            replyText: statusText,
+            quickButtons: ["SHOW", "VAULT", "1"],
+            actionType: "STATUS_TRACKING"
+        };
+    }
+
+    // ─── COMMAND 3: SPECIFIC APPLICATION / ACKNOWLEDGMENT LOOKUP ─────────
+    const ackMatch = rawInput.match(/^(?:SBMS|ACK|APP|GRV)-[A-Za-z0-9-]+/i) || (upperInput.startsWith("STATUS ") ? [rawInput.slice(7).trim()] : null);
+    if (ackMatch) {
+        const queryId = ackMatch[0].trim();
+        const matchedApp = userApps.find((a: any) => 
+            a.id.toLowerCase() === queryId.toLowerCase() ||
+            (a.externalApplicationId && a.externalApplicationId.toLowerCase().includes(queryId.toLowerCase()))
+        );
+
+        if (matchedApp) {
+            const subDate = new Date(matchedApp.submittedAt).toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric" });
+            const subTime = new Date(matchedApp.submittedAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+            const refNo = matchedApp.externalApplicationId || `SBMS-APP-${matchedApp.id.slice(-6).toUpperCase()}`;
+
+            let detail = `🔍 *APPLICATION TRACKING REPORT*\n━━━━━━━━━━━━━━━━━━━━\n`;
+            detail += `📌 *Scheme:* *${matchedApp.scheme.title}*\n`;
+            detail += `🎫 *Reference ID:* \`${refNo}\`\n`;
+            detail += `👤 *Applicant:* ${userName}\n`;
+            detail += `📊 *Current Status:* *${matchedApp.status}*\n`;
+            detail += `🌐 *Filing Portal:* ${matchedApp.externalPortal || "Autonomous Welfare Gateway"}\n`;
+            detail += `⏱️ *Submission Time:* ${subDate} at ${subTime}\n`;
+            if (matchedApp.notes) {
+                detail += `📝 *Officer Remarks:* ${matchedApp.notes}\n`;
+            }
+            detail += `━━━━━━━━━━━━━━━━━━━━\n`;
+            detail += `🔗 *Official Portal View:* ${baseUrl}/applications`;
+
+            return {
+                replyText: detail,
+                quickButtons: ["STATUS", "SHOW", "VAULT"],
+                actionType: "STATUS_TRACKING"
+            };
+        }
+    }
+
+    // ─── COMMAND 4: DOCUMENT VAULT AUDIT (VAULT / DOCS) ─────────────────
+    if (
+        upperInput === "VAULT" || upperInput === "DOCS" || upperInput === "DOC" || 
+        upperInput === "DOCUMENT" || upperInput === "DOCUMENTS" || 
+        upperInput === "MY DOCS" || upperInput === "CERTIFICATES" || upperInput === "சான்றிதழ்"
+    ) {
+        const docTypes = [
+            { key: "aadhaar", label: "Aadhaar e-KYC Proof", weight: 25 },
+            { key: "income_cert", label: "Income Certificate (Tahsildar)", weight: 25 },
+            { key: "caste_cert", label: "Community / Caste Proof", weight: 20 },
+            { key: "domicile", label: "Nativity / Domicile Proof", weight: 15 },
+            { key: "ration_card", label: "Ration / Smart Card", weight: 15 }
+        ];
+
+        let presentCount = 0;
+        let vaultText = `📂 *YOUR SBMS DOCUMENT VAULT AUDIT*\n━━━━━━━━━━━━━━━━━━━━\n`;
+        vaultText += `Beneficiary: *${userName}* | Verified: *${userDocs.length} items*\n\n`;
+
+        docTypes.forEach(dt => {
+            const has = userDocs.some((d: any) => d.type === dt.key || d.name.toLowerCase().includes(dt.key.replace("_", "")));
+            if (has) presentCount++;
+            vaultText += `${has ? "✅" : "❌"} *${dt.label}*: ${has ? "_Ready in Vault_" : "_Missing_"}\n`;
+        });
+
+        // Other extra documents
+        const extraDocs = userDocs.filter((d: any) => !docTypes.some(dt => dt.key === d.type || d.name.toLowerCase().includes(dt.key.replace("_", ""))));
+        if (extraDocs.length > 0) {
+            vaultText += `\n📄 *Additional Proofs in Vault:*\n`;
+            extraDocs.slice(0, 3).forEach((d: any) => {
+                vaultText += `• ✓ ${d.name} (${d.type})\n`;
+            });
+        }
+
+        const readinessPercent = Math.min(100, Math.round((presentCount / docTypes.length) * 100));
+        vaultText += `\n━━━━━━━━━━━━━━━━━━━━\n`;
+        vaultText += `🎯 *Vault Readiness Score:* *${readinessPercent}%*\n`;
+        if (readinessPercent < 100) {
+            vaultText += `💡 _Upload missing certificates to unlock 100% of welfare schemes:_ \n👉 ${baseUrl}/documents\n`;
+        } else {
+            vaultText += `🌟 _All core proofs verified! You have maximum zero-touch eligibility._\n`;
+        }
+        vaultText += `\n💬 *Reply with SHOW to view your eligible schemes.*`;
+
+        return {
+            replyText: vaultText,
+            quickButtons: ["SHOW", "STATUS", "HELP"],
+            actionType: "VAULT_AUDIT"
+        };
+    }
+
+    // ─── COMMAND 5: GRIEVANCE REDRESSAL (COMPLAINT / GRIEVANCE) ─────────
+    if (upperInput.startsWith("COMPLAINT") || upperInput.startsWith("GRIEVANCE") || upperInput.startsWith("REPORT") || upperInput === "மனு" || upperInput === "शिकायत") {
+        const parts = rawInput.split(/^(?:COMPLAINT|GRIEVANCE|REPORT)\s*/i);
+        const issueText = parts[1]?.trim();
+
+        if (issueText && issueText.length >= 4) {
+            // Register real grievance in DB
+            try {
+                const grv = await prisma.grievance.create({
+                    data: {
+                        userId: user.id,
+                        subject: issueText.slice(0, 60),
+                        description: issueText,
+                        status: "OPEN"
+                    }
+                });
+
+                const ticketId = `GRV-${grv.id.slice(-6).toUpperCase()}`;
+
+                return {
+                    replyText: `🏛️ *GRIEVANCE REGISTERED SUCCESSFULLY*\n━━━━━━━━━━━━━━━━━━━━\n🙏 *Namaste ${userName}!*\n\nYour welfare grievance has been logged into the SBMS Redressal Portal.\n\n🎫 *Ticket ID:* \`${ticketId}\`\n📋 *Subject:* "${issueText.slice(0, 60)}"\n⏳ *Status:* 🟡 *OPEN (Assigned to District Welfare Officer)*\n⏱️ *Resolution SLA:* 48 Hours\n\n━━━━━━━━━━━━━━━━━━━━\n🔔 *Autonomous Alerts:* You will receive instant WhatsApp notifications as officers review and resolve your grievance.\n\n🔗 *Track Grievances:* ${baseUrl}/grievances`,
+                    quickButtons: ["STATUS", "SHOW", "HELP"],
+                    actionType: "GRIEVANCE"
+                };
+            } catch (grvErr) {
+                console.error("Failed to save grievance:", grvErr);
+            }
+        }
+
+        // If command was typed without text, provide instructions
+        let grvMenu = `🏛️ *SBMS GRIEVANCE REDRESSAL HELPLINE*\n━━━━━━━━━━━━━━━━━━━━\n`;
+        grvMenu += `To lodge an official grievance regarding delayed DBT, rejected application, or missing subsidy, reply:\n\n`;
+        grvMenu += `👉 *COMPLAINT <describe your issue>*\n\n`;
+        grvMenu += `*Examples:*\n`;
+        grvMenu += `• \`COMPLAINT PM-Kisan subsidy not credited to bank\`\n`;
+        grvMenu += `• \`COMPLAINT Delay in Post Matric Scholarship verification\`\n`;
+        grvMenu += `• \`COMPLAINT Ration smart card address update error\`\n\n`;
+
+        const userGrvs = user?.grievances || [];
+        if (userGrvs.length > 0) {
+            grvMenu += `━━━━━━━━━━━━━━━━━━━━\n📋 *Your Previous Grievances (${userGrvs.length}):*\n`;
+            userGrvs.slice(0, 3).forEach((g: any) => {
+                const gBadge = g.status === "RESOLVED" ? "🟢 RESOLVED" : g.status === "IN_PROGRESS" ? "🔵 IN PROGRESS" : "🟡 OPEN";
+                grvMenu += `• \`GRV-${g.id.slice(-6).toUpperCase()}\`: ${gBadge} — ${g.subject.slice(0, 40)}\n`;
+            });
+            grvMenu += `\n`;
+        }
+
+        grvMenu += `🔗 *Grievance Portal:* ${baseUrl}/grievances`;
+
+        return {
+            replyText: grvMenu,
+            quickButtons: ["STATUS", "SHOW", "HELP"],
+            actionType: "GRIEVANCE"
+        };
+    }
+
+    // ─── COMMAND 6: SCHEME DISCOVERY (SHOW / LIST / SCHEMES) ─────────────
+    if (
+        upperInput === "SHOW" || upperInput === "LIST" || upperInput === "SCHEMES" || 
+        upperInput.includes("SHOW MY SCHEMES") || upperInput.includes("MY SCHEMES") || 
+        upperInput.includes("SHOW SCHEMES") || upperInput === "திட்டம்" || upperInput === "திட்டங்கள்" ||
+        upperInput === "योजना"
+    ) {
         const totalCount = fullyEligible.length > 0 ? fullyEligible.length : combinedList.length;
-        let menuText = `📋 *Your Top Eligible Welfare Schemes (Top 5 of ${totalCount}):*\n━━━━━━━━━━━━━━━━━━━━\n`;
+        let menuText = `📋 *Top Eligible Welfare Schemes for ${userName} (${topFive.length} of ${totalCount}):*\n━━━━━━━━━━━━━━━━━━━━\n`;
 
         topFive.forEach((s, idx) => {
             const numberIcons = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣"];
@@ -104,7 +351,7 @@ export async function processIncomingWhatsAppMessage(
             menuText += `${icon} *${s.title}*\n   • Aid: ${shortBenefit}…\n   • Status: ${docBadge}\n\n`;
         });
 
-        menuText += `━━━━━━━━━━━━━━━━━━━━\n📊 *Summary:* *${fullyEligible.length}* Verified Ready | *${docsPending.length}* Missing Documents\n🔗 *Full Portal:* https://smart-beneficiary-mapping-system.vercel.app/eligibility\n\n💬 *Reply with 1, 2, 3, 4, 5 or scheme name for full details & application link.*`;
+        menuText += `━━━━━━━━━━━━━━━━━━━━\n📊 *Summary:* *${fullyEligible.length}* Ready to Apply | *${docsPending.length}* Missing Documents\n🔗 *Full Portal:* ${baseUrl}/eligibility\n\n💬 *Reply with 1, 2, 3, 4, 5 for direct portal link & required document checklist.*`;
 
         return {
             replyText: menuText,
@@ -113,11 +360,70 @@ export async function processIncomingWhatsAppMessage(
         };
     }
 
-    // ─── STATE 3: STEP 3 - USER ASKS FOR A NUMBER (1, 2, 3, 4, 5) ──
-    const emojiNumberMap: Record<string, number> = { "1️⃣": 1, "2️⃣": 2, "3️⃣": 3, "4️⃣": 4, "5️⃣": 5, "1": 1, "2": 2, "3": 3, "4": 4, "5": 5 };
+    // ─── COMMAND 7: TARGET PERSONA / CATEGORY FILTERS ───────────────────
+    const categoryKeywords: Record<string, { filter: string; label: string; icon: string }> = {
+        FARMER: { filter: "farmer", label: "Agriculture & Farmers Welfare", icon: "🌾" },
+        AGRICULTURE: { filter: "agriculture", label: "Agriculture & Farmers Welfare", icon: "🌾" },
+        விவசாயி: { filter: "farmer", label: "விவசாயிகள் நலத்திட்டங்கள்", icon: "🌾" },
+        किसान: { filter: "farmer", label: "किसान कल्याण योजनाएं", icon: "🌾" },
+        STUDENT: { filter: "student", label: "Education & Scholarships", icon: "🎓" },
+        SCHOLARSHIP: { filter: "scholarship", label: "Education & Scholarships", icon: "🎓" },
+        EDUCATION: { filter: "education", label: "Education & Scholarships", icon: "🎓" },
+        மாணவர்: { filter: "student", label: "கல்வி & உதவித்தொகை", icon: "🎓" },
+        छात्र: { filter: "student", label: "छात्रवृत्ति और शिक्षा", icon: "🎓" },
+        WOMEN: { filter: "women", label: "Women & Child Development", icon: "👩" },
+        LADIES: { filter: "women", label: "Women & Child Development", icon: "👩" },
+        பெண்கள்: { filter: "women", label: "மகளிர் நலத்திட்டங்கள்", icon: "👩" },
+        महिला: { filter: "women", label: "महिला सशक्तिकरण", icon: "👩" },
+        HEALTH: { filter: "health", label: "Healthcare & Medical Insurance", icon: "🏥" },
+        MEDICAL: { filter: "health", label: "Healthcare & Medical Insurance", icon: "🏥" },
+        மருத்துவம்: { filter: "health", label: "மருத்துவ காப்பீடு திட்டங்கள்", icon: "🏥" },
+        HOUSING: { filter: "housing", label: "Housing & Shelter Assistance", icon: "🏠" },
+        HOME: { filter: "housing", label: "Housing & Shelter Assistance", icon: "🏠" },
+        LOAN: { filter: "loan", label: "Business Loans & Subsidies", icon: "💼" },
+        BUSINESS: { filter: "business", label: "Business Loans & Subsidies", icon: "💼" },
+        MSME: { filter: "msme", label: "MSME Financial Schemes", icon: "💼" },
+        PENSION: { filter: "pension", label: "Social Security & Old Age Pensions", icon: "👴" },
+        SENIOR: { filter: "senior", label: "Senior Citizens Welfare", icon: "👴" },
+        DISABILITY: { filter: "disability", label: "Divyangjan & Disability Grants", icon: "♿" },
+        DIVYANG: { filter: "disability", label: "Divyangjan & Disability Grants", icon: "♿" },
+    };
+
+    const matchedCategoryKey = Object.keys(categoryKeywords).find(k => upperInput.includes(k));
+    if (matchedCategoryKey) {
+        const catInfo = categoryKeywords[matchedCategoryKey];
+        const matchingSchemes = schemes.filter(s => 
+            s.title.toLowerCase().includes(catInfo.filter) ||
+            (s.description && s.description.toLowerCase().includes(catInfo.filter)) ||
+            (s.category?.name && s.category.name.toLowerCase().includes(catInfo.filter)) ||
+            (s.eligibility && s.eligibility.toLowerCase().includes(catInfo.filter))
+        ).slice(0, 4);
+
+        if (matchingSchemes.length > 0) {
+            let catText = `${catInfo.icon} *${catInfo.label} (${matchingSchemes.length} Schemes):*\n━━━━━━━━━━━━━━━━━━━━\n`;
+            matchingSchemes.forEach((s, idx) => {
+                const shortBenefit = s.benefits ? s.benefits.slice(0, 60).replace(/\*\*/g, "").replace(/\n/g, " ") : "Welfare Subsidy";
+                const portal = s.applyLink || `${baseUrl}/schemes/${s.id}`;
+                catText += `${idx + 1}. *${s.title}*\n   • Benefit: ${shortBenefit}…\n   • Apply: ${portal}\n\n`;
+            });
+            catText += `━━━━━━━━━━━━━━━━━━━━\n💬 _Reply with *SHOW* to view your pre-qualified matches._`;
+
+            return {
+                replyText: catText,
+                quickButtons: ["SHOW", "STATUS", "VAULT"],
+                actionType: "CATEGORY_FILTER"
+            };
+        }
+    }
+
+    // ─── COMMAND 8: SPECIFIC NUMBER SELECTION (1, 2, 3, 4, 5, ...) ──────
+    const emojiNumberMap: Record<string, number> = { 
+        "1️⃣": 1, "2️⃣": 2, "3️⃣": 3, "4️⃣": 4, "5️⃣": 5, 
+        "1": 1, "2": 2, "3": 3, "4": 4, "5": 5, "6": 6, "7": 7, "8": 8, "9": 9 
+    };
     let requestedIndex: number | undefined = emojiNumberMap[rawInput];
     if (!requestedIndex) {
-        const numMatch = rawInput.match(/(?:scheme\s*|option\s*|#\s*)?(\d+)/i);
+        const numMatch = rawInput.match(/^(?:scheme\s*|option\s*|#\s*)?(\d+)$/i);
         if (numMatch) {
             requestedIndex = parseInt(numMatch[1], 10);
         }
@@ -125,42 +431,74 @@ export async function processIncomingWhatsAppMessage(
 
     if (requestedIndex && requestedIndex >= 1 && requestedIndex <= topFive.length) {
         const selectedScheme = topFive[requestedIndex - 1];
-        return buildSchemeDetailResponse(selectedScheme, user);
+        return buildSchemeDetailResponse(selectedScheme, user, baseUrl);
     }
 
     // Check if user typed a specific scheme title keyword
-    const matchedByTitle = topFive.find(s => s.title.toLowerCase().includes(rawInput.toLowerCase()));
-    if (matchedByTitle) {
-        return buildSchemeDetailResponse(matchedByTitle, user);
+    const matchedByTitle = schemes.find(s => s.title.toLowerCase().includes(rawInput.toLowerCase()));
+    if (matchedByTitle && rawInput.length >= 4) {
+        return buildSchemeDetailResponse(matchedByTitle, user, baseUrl);
     }
 
-    // ─── GENERAL KEYWORD / AI SEARCH FALLBACK ───────────────────
+    // ─── COMMAND 9: HELP / COMMAND GUIDE ────────────────────────────────
+    if (
+        upperInput === "HELP" || upperInput === "MENU" || upperInput === "COMMANDS" || 
+        upperInput === "?" || upperInput === "வழிகாட்டி" || upperInput === "मदद"
+    ) {
+        let helpText = `🤖 *SBMS CITIZEN ASSISTANT - COMMAND DIRECTORY*\n`;
+        helpText += `━━━━━━━━━━━━━━━━━━━━\n\n`;
+        helpText += `📋 *Scheme & Eligibility Discovery:*\n`;
+        helpText += `• *SHOW* — Top 5 pre-qualified welfare schemes\n`;
+        helpText += `• *1, 2, 3, 4, 5* — Detailed scheme & direct application link\n`;
+        helpText += `• *FARMER / STUDENT / WOMEN / HEALTH* — Category browse\n\n`;
+
+        helpText += `🔍 *Application & Vault Tracking:*\n`;
+        helpText += `• *STATUS* — Live tracker for submitted applications\n`;
+        helpText += `• *VAULT* — Audit your Document Vault & readiness score\n`;
+        helpText += `• *\`SBMS-ACK-...\`* — Track a specific reference slip\n\n`;
+
+        helpText += `📢 *Grievance & Redressal:*\n`;
+        helpText += `• *COMPLAINT <text>* — Register official grievance\n\n`;
+
+        helpText += `🌐 *Multilingual:*\n`;
+        helpText += `• Reply in *English*, *Tamil (தமிழ்)*, or *Hindi (हिंदी)*\n\n`;
+        helpText += `━━━━━━━━━━━━━━━━━━━━\n`;
+        helpText += `🔗 *Welfare Portal:* ${baseUrl}`;
+
+        return {
+            replyText: helpText,
+            quickButtons: ["SHOW", "STATUS", "VAULT", "COMPLAINT"],
+            actionType: "HELP_MENU"
+        };
+    }
+
+    // ─── GENERAL KEYWORD SEARCH FALLBACK ─────────────────────────────────
     const searchMatch = schemes.filter(s =>
         s.title.toLowerCase().includes(rawInput.toLowerCase()) ||
         (s.description && s.description.toLowerCase().includes(rawInput.toLowerCase()))
     );
 
-    if (searchMatch.length > 0) {
+    if (searchMatch.length > 0 && rawInput.length >= 3) {
         const best = searchMatch[0];
-        const link = best.applyLink || `https://smart-beneficiary-mapping-system.vercel.app/schemes/${best.id}`;
+        const link = best.applyLink || `${baseUrl}/schemes/${best.id}`;
         return {
-            replyText: `🔍 *Found matching scheme for "${rawInput}":*\n\n📌 *${best.title}*\n${best.description?.slice(0, 150)}…\n\n🔗 *Official Portal:* ${link}\n\n_Reply with *SHOW* to see all your pre-qualified schemes._`,
-            quickButtons: ["SHOW", "1", "2"],
+            replyText: `🔍 *Matching Welfare Program Found:*\n\n📌 *${best.title}*\n${best.description?.slice(0, 160)}…\n\n💰 *Benefit:* ${best.benefits?.slice(0, 100) || "Direct Government Grant"}\n🔗 *Official Portal:* ${link}\n\n━━━━━━━━━━━━━━━━━━━━\n_Reply with *SHOW* to see all pre-qualified schemes for your profile._`,
+            quickButtons: ["SHOW", "STATUS", "VAULT"],
             actionType: "SCHEME_DETAIL"
         };
     }
 
     return {
-        replyText: `🤖 *SBMS Assistant:* I received "${rawInput}".\n\n• Type *SHOW* to view your verified eligible schemes.\n• Type *1, 2, 3* to view details of a specific scheme.\n• Type any keyword (e.g. *Farmer*, *Scholarship*, *Women Loan*) to search across 4,725 government programs.`,
-        quickButtons: ["SHOW", "1", "2"],
+        replyText: `🤖 *SBMS Assistant:* I received "${rawInput}".\n\n• Type *SHOW* to discover schemes you qualify for.\n• Type *STATUS* to track your submitted applications.\n• Type *VAULT* to check your uploaded document proofs.\n• Type *HELP* to view the complete command directory.`,
+        quickButtons: ["SHOW", "STATUS", "VAULT", "HELP"],
         actionType: "AI_CONVERSATION"
     };
 }
 
-function buildSchemeDetailResponse(scheme: any, user: any): ConversationResponse {
+function buildSchemeDetailResponse(scheme: any, user: any, baseUrl: string): ConversationResponse {
     const reqs = getSchemeDocumentRequirements(scheme).filter(r => r.needed);
     const userDocs = user?.documents || [];
-    const checkDoc = (docKey: string) => userDocs.some((d: any) => d.type === docKey);
+    const checkDoc = (docKey: string) => userDocs.some((d: any) => d.type === docKey || d.name.toLowerCase().includes(docKey.replace("_", "")));
 
     let text = `🎓 *${scheme.title}*\n`;
     text += `━━━━━━━━━━━━━━━━━━━━\n`;
@@ -168,7 +506,7 @@ function buildSchemeDetailResponse(scheme: any, user: any): ConversationResponse
     text += `💰 *Benefits & Financial Aid:*\n${scheme.benefits ? scheme.benefits.slice(0, 220).replace(/\*\*/g, "").replace(/\n+/g, " ") : "Direct DBT grant transferred to bank account."}\n\n`;
 
     if (reqs.length > 0) {
-        text += `📄 *Required Documents & Vault Status:*\n`;
+        text += `📄 *Required Proofs & Vault Status:*\n`;
         reqs.forEach(r => {
             const has = checkDoc(r.key);
             text += `${has ? "✅" : "❌"} ${r.label}: ${has ? "Ready in Vault" : "Missing / Upload Required"}\n`;
@@ -176,14 +514,16 @@ function buildSchemeDetailResponse(scheme: any, user: any): ConversationResponse
         text += `\n`;
     }
 
-    const portalLink = scheme.applyLink || `https://smart-beneficiary-mapping-system.vercel.app/schemes/${scheme.id}`;
+    const portalLink = scheme.applyLink || `${baseUrl}/schemes/${scheme.id}`;
     text += `🔗 *Official Application Portal:*\n👉 ${portalLink}\n\n`;
     text += `━━━━━━━━━━━━━━━━━━━━\n`;
-    text += `💡 _Upload missing documents to your SBMS Document Vault (https://smart-beneficiary-mapping-system.vercel.app/documents) to complete zero-touch application!_`;
+    text += `💡 _Tip: Upload missing documents to your SBMS Document Vault (${baseUrl}/documents) for instant zero-touch application!_\n\n`;
+    text += `💬 _Reply with *STATUS* to track applications or *SHOW* for menu._`;
 
     return {
         replyText: text,
-        quickButtons: ["SHOW", "Apply on Portal", "Back to Menu"],
+        quickButtons: ["SHOW", "STATUS", "VAULT"],
         actionType: "SCHEME_DETAIL"
     };
 }
+
