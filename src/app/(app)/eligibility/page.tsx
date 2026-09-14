@@ -5,7 +5,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle2, XCircle, AlertTriangle, ArrowRight, UserCog, ShieldCheck, Sparkles } from "lucide-react";
 import Link from "next/link";
 import EligibilityRing from "@/components/ui/EligibilityRing";
-import SendSchemeToWhatsApp from "@/components/whatsapp/SendSchemeToWhatsApp";
 
 type SchemeMatch = {
     id: string;
@@ -96,13 +95,6 @@ export default function EligibilityPage() {
                     </div>
 
                     <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-                        {/* Send Eligible Report to WhatsApp Button */}
-                        <SendSchemeToWhatsApp
-                            allEligibleSchemes={[...(data.eligible || []), ...(data.docsPending || [])]}
-                            variant="banner"
-                            buttonLabel="📲 Send Report to My WhatsApp"
-                        />
-
                         {/* Family selector */}
                         <div style={{ background: "white", border: "1.5px solid #e2e8f0", borderRadius: 14, padding: "12px 16px", display: "flex", alignItems: "center", gap: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
                             <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
