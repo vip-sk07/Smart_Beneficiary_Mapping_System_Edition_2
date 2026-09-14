@@ -670,20 +670,22 @@ export async function processIncomingWhatsAppMessage(
 
         helpText += `🔍 *Application & Vault Tracking:*\n`;
         helpText += `• *STATUS* — Live tracker for submitted applications\n`;
+        helpText += `• *SLIP* — Download official signed PDF Acknowledgment Slip\n`;
         helpText += `• *VAULT* — Audit your Document Vault & readiness score\n`;
         helpText += `• *\`SBMS-ACK-...\`* — Track a specific reference slip\n\n`;
 
-        helpText += `📢 *Grievance & Redressal:*\n`;
-        helpText += `• *COMPLAINT <text>* — Register official grievance\n\n`;
+        helpText += `🏛️ *Centers & Grievance:*\n`;
+        helpText += `• *📍 Share Location* — Find nearest CSC e-Seva & Aadhaar centers\n`;
+        helpText += `• *COMPLAINT <text>* — Register official citizen grievance\n\n`;
 
-        helpText += `🌐 *Multilingual:*\n`;
-        helpText += `• Reply in *English*, *Tamil (தமிழ்)*, or *Hindi (हिंदी)*\n\n`;
+        helpText += `🎙️ *Bhashini Voice & Multilingual:*\n`;
+        helpText += `• Send *Voice Notes* or text in *English*, *Tamil (தமிழ்)*, or *Hindi (हिंदी)*\n\n`;
         helpText += `━━━━━━━━━━━━━━━━━━━━\n`;
         helpText += `🔗 *Welfare Portal:* ${baseUrl}`;
 
         return {
             replyText: helpText,
-            quickButtons: ["SHOW", "STATUS", "VAULT", "COMPLAINT"],
+            quickButtons: ["SHOW", "STATUS", "SLIP", "VAULT", "COMPLAINT"],
             actionType: "HELP_MENU"
         };
     }
