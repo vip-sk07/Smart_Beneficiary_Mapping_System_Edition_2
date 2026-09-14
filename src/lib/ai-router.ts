@@ -218,51 +218,51 @@ export async function callAICascade(
     // 2. Try Tier 2: Google Gemini 1.5 Flash
     if (process.env.GEMINI_API_KEY) {
         try {
-            console.log("🟢 [AI Router] Dispatching to Tier 2: Google Gemini 1.5 Flash...");
+            console.log("🟢 [AI Router] Dispatching to Tier 2: Cloud Model Engine...");
             const response = await callGemini(sanitizedMessages, options);
-            saveToCache(sanitizedMessages, response, "Google Gemini", options);
-            return { text: response, provider: "Google Gemini 1.5 Flash" };
+            saveToCache(sanitizedMessages, response, "SBMS AI Engine", options);
+            return { text: response, provider: "SBMS AI Engine" };
         } catch (err: any) {
-            console.warn("⚠️ [AI Router] Tier 2 (Gemini) failed/rate-limited:", err.message);
-            errors.push(`Gemini: ${err.message}`);
+            console.warn("⚠️ [AI Router] Tier 2 failed/rate-limited:", err.message);
+            errors.push(`Tier 2: ${err.message}`);
         }
     }
 
-    // 3. Try Tier 3: Groq LPU Hardware (Hot Failover)
+    // 3. Try Tier 3: High-Speed Hardware Accelerator (Hot Failover)
     if (process.env.GROQ_API_KEY) {
         try {
-            console.log("🚀 [AI Router] Hot Failover to Tier 3: Groq LPU (llama-3.1-8b-instant)...");
+            console.log("🚀 [AI Router] Hot Failover to Tier 3...");
             const response = await callGroq(sanitizedMessages, options);
-            saveToCache(sanitizedMessages, response, "Groq LPU", options);
-            return { text: response, provider: "Groq LPU (500+ t/s)" };
+            saveToCache(sanitizedMessages, response, "SBMS AI Engine", options);
+            return { text: response, provider: "SBMS AI Engine" };
         } catch (err: any) {
-            console.warn("⚠️ [AI Router] Tier 3 (Groq) failed:", err.message);
-            errors.push(`Groq: ${err.message}`);
+            console.warn("⚠️ [AI Router] Tier 3 failed:", err.message);
+            errors.push(`Tier 3: ${err.message}`);
         }
     }
 
-    // 4. Try Tier 4: Hugging Face Serverless API
+    // 4. Try Tier 4: Serverless API
     if (process.env.HUGGINGFACE_API_KEY) {
         try {
-            console.log("🤗 [AI Router] Failover to Tier 4: Hugging Face (Qwen 2.5)...");
+            console.log("🤗 [AI Router] Failover to Tier 4...");
             const response = await callHuggingFace(sanitizedMessages, options);
-            saveToCache(sanitizedMessages, response, "Hugging Face", options);
-            return { text: response, provider: "Hugging Face (Qwen 2.5)" };
+            saveToCache(sanitizedMessages, response, "SBMS AI Engine", options);
+            return { text: response, provider: "SBMS AI Engine" };
         } catch (err: any) {
-            console.warn("⚠️ [AI Router] Tier 4 (Hugging Face) failed:", err.message);
-            errors.push(`Hugging Face: ${err.message}`);
+            console.warn("⚠️ [AI Router] Tier 4 failed:", err.message);
+            errors.push(`Tier 4: ${err.message}`);
         }
     }
 
-    // 5. Try Tier 5: Cloud Docker / Local Ollama
+    // 5. Try Tier 5: Local Dedicated Engine
     try {
-        console.log("💻 [AI Router] Routing to Tier 5: Cloud Docker / Local Ollama...");
+        console.log("💻 [AI Router] Routing to Tier 5: Local Dedicated Engine...");
         const response = await callOllamaProvider(sanitizedMessages, options);
-        saveToCache(sanitizedMessages, response, "Ollama", options);
-        return { text: response, provider: "Ollama (Open-Source Core)" };
+        saveToCache(sanitizedMessages, response, "SBMS AI Engine", options);
+        return { text: response, provider: "SBMS AI Engine" };
     } catch (err: any) {
-        console.warn("⚠️ [AI Router] Tier 5 (Ollama) failed:", err.message);
-        errors.push(`Ollama: ${err.message}`);
+        console.warn("⚠️ [AI Router] Tier 5 failed:", err.message);
+        errors.push(`Tier 5: ${err.message}`);
     }
 
     throw new Error(`All AI Providers in Cascade failed:\n${errors.join("\n")}`);
@@ -280,38 +280,38 @@ export async function* streamAICascade(
         content: m.role === "user" ? scrubPII(m.content) : m.content,
     }));
 
-    // 1. Try Streaming from Google Gemini
+    // 1. Try Streaming from Primary Cloud Model
     if (process.env.GEMINI_API_KEY) {
         try {
-            console.log("🟢 [AI Router] Streaming from Tier 2: Google Gemini 1.5 Flash...");
+            console.log("🟢 [AI Router] Streaming from Primary Cloud Model...");
             for await (const chunk of streamGemini(sanitizedMessages, options)) {
-                yield { chunk, provider: "Google Gemini 1.5 Flash" };
+                yield { chunk, provider: "SBMS AI Engine" };
             }
             return;
         } catch (err: any) {
-            console.warn("⚠️ [AI Router] Gemini stream failed, cascading to Groq:", err.message);
+            console.warn("⚠️ [AI Router] Primary stream failed, cascading:", err.message);
         }
     }
 
-    // 2. Try Streaming from Groq LPU
+    // 2. Try Streaming from Accelerated LPU
     if (process.env.GROQ_API_KEY) {
         try {
-            console.log("🚀 [AI Router] Hot Streaming from Tier 3: Groq LPU...");
+            console.log("🚀 [AI Router] Hot Streaming from Accelerated Engine...");
             for await (const chunk of streamGroq(sanitizedMessages, options)) {
-                yield { chunk, provider: "Groq LPU" };
+                yield { chunk, provider: "SBMS AI Engine" };
             }
             return;
         } catch (err: any) {
-            console.warn("⚠️ [AI Router] Groq stream failed, cascading to Ollama:", err.message);
+            console.warn("⚠️ [AI Router] Stream failed, cascading to local:", err.message);
         }
     }
 
-    // 3. Try Streaming from Ollama
-    console.log("💻 [AI Router] Streaming from Tier 5: Ollama Engine...");
+    // 3. Try Streaming from Local Engine
+    console.log("💻 [AI Router] Streaming from Local Dedicated Engine...");
     const ollamaMessages: OllamaMessage[] = sanitizedMessages.map(m => ({ role: m.role, content: m.content }));
     const model = process.env.OLLAMA_CHAT_MODEL || "qwen2.5-coder:3b";
     for await (const chunk of streamOllama(ollamaMessages, model, options?.temperature ?? 0.7)) {
-        yield { chunk, provider: "Ollama Local Engine" };
+        yield { chunk, provider: "SBMS AI Engine" };
     }
 }
 

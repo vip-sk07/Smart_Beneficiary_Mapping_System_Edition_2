@@ -345,7 +345,7 @@ export default function AutonomousAgentModal({
                                         letterSpacing: "0.04em",
                                     }}
                                 >
-                                    PLAYWRIGHT LIVE
+                                    AUTONOMOUS AGENT LIVE
                                 </span>
                             </div>
                             <div
@@ -626,7 +626,7 @@ export default function AutonomousAgentModal({
                                         borderRadius: 8,
                                     }}
                                 >
-                                    <Cpu size={16} /> Launch Playwright Browser Agent
+                                    <Cpu size={16} /> Launch Autonomous Application Agent
                                 </button>
                                 <button
                                     onClick={onClose}
@@ -653,10 +653,10 @@ export default function AutonomousAgentModal({
                             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
                                 <div>
                                     <h3 style={{ fontSize: 16, fontWeight: 700, color: "#0f2e5a", margin: 0 }}>
-                                        Autonomous Playwright Browser Agent Running...
+                                        Autonomous Application Agent Running...
                                     </h3>
                                     <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
-                                        Driving headless Chromium, auto-filling fields, and resolving security challenges
+                                        Driving automated portal session, auto-filling fields, and resolving security challenges
                                     </div>
                                 </div>
                                 <div
@@ -680,9 +680,9 @@ export default function AutonomousAgentModal({
                             {/* Multi-step execution tracker */}
                             <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
                                 {[
-                                    { title: "Launching Headless Chromium Browser Instance", desc: "Setting up viewport 1280x800 and navigating to target portal" },
+                                    { title: "Launching Secure Automated Browser Instance", desc: "Setting up viewport 1280x800 and navigating to target portal" },
                                     { title: "Inspecting Live DOM & Auto-Populating Form Inputs", desc: "Mapping verified Aadhaar, Name, Income, and State credentials" },
-                                    { title: "Multimodal Vision AI CAPTCHA Auto-Solver", desc: "Taking live viewport screenshot and solving challenge with Gemini Vision" },
+                                    { title: "Multimodal Vision AI CAPTCHA Auto-Solver", desc: "Taking live viewport screenshot and solving challenge with Vision AI" },
                                     { title: "Live Portal Submission & Real Reference ID Extraction", desc: "Submitting application form and capturing official confirmation DOM receipt" },
                                 ].map((step, idx) => {
                                     const isDone = idx < executingStepIndex;
@@ -998,7 +998,7 @@ export default function AutonomousAgentModal({
                                             border: "1px solid #86efac",
                                         }}
                                     >
-                                        PLAYWRIGHT VERIFIED
+                                        OFFICIALLY VERIFIED
                                     </div>
                                 </div>
 

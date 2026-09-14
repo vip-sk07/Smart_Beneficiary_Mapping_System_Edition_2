@@ -22,7 +22,7 @@ For example: [SCHEME_CARD: cm1x2y3z...]
 Do not make up scheme IDs. Only use the IDs provided in the context below.
 
 CRITICAL INSTRUCTION FOR AUTOMATED BROWSER AGENT:
-If the user explicitly asks you to apply for a scheme for them or fill out a form (e.g., "Apply for PM-Kisan for me" or "Fill out the application"), you MUST respond with the following syntax on its own line to launch the Playwright Browser Agent:
+If the user explicitly asks you to apply for a scheme for them or fill out a form (e.g., "Apply for PM-Kisan for me" or "Fill out the application"), you MUST respond with the following syntax on its own line to launch the Autonomous Application Agent:
 [AGENT_RUN: {Scheme Name}]
 For example: [AGENT_RUN: PM-Kisan Samman Nidhi]
 

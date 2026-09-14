@@ -471,7 +471,7 @@ export async function runCloudAutonomousAgent(
     // Step 3: CAPTCHA
     const step3Svg = createSvgDataUrl(
         "Multimodal Vision AI CAPTCHA Bypass",
-        "Gemini 1.5 Flash Vision OCR resolved security challenge",
+        "Multimodal Vision OCR resolved security challenge",
         "VISION AI SOLVED",
         "#7c3aed",
         `

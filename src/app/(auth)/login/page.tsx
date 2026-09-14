@@ -103,7 +103,7 @@ export default function LoginPage() {
                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1 }}
                         style={{ marginTop: 48, display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.25)", borderRadius: 99, padding: "8px 18px" }}>
                         <Sparkles size={14} color="#818cf8" />
-                        <span style={{ fontSize: 12, fontWeight: 700, color: "#818cf8", letterSpacing: "0.04em" }}>LOCAL AI · OLLAMA</span>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: "#818cf8", letterSpacing: "0.04em" }}>SECURE CITIZEN PORTAL · AI POWERED</span>
                     </motion.div>
                 </div>
             </div>

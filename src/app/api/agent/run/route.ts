@@ -121,7 +121,7 @@ export async function POST(req: NextRequest) {
                     externalPortal: browserResult.portalName || scanResult.portalName,
                     externalStatus: "Submitted — Verified via Autonomous Browser Agent",
                     externalStatusUrl: scheme.applyLink || undefined,
-                    notes: `Filed via Real Playwright Chromium Engine. Reference ID: ${referenceId}.`,
+                    notes: `Filed via Autonomous Welfare Application Agent. Reference ID: ${referenceId}.`,
                     lastSyncedAt: new Date(),
                 },
             });
@@ -135,7 +135,7 @@ export async function POST(req: NextRequest) {
                     externalPortal: browserResult.portalName || scanResult.portalName,
                     externalStatus: "Submitted — Verified via Autonomous Browser Agent",
                     externalStatusUrl: scheme.applyLink || undefined,
-                    notes: `Filed via Real Playwright Chromium Engine. Reference ID: ${referenceId}.`,
+                    notes: `Filed via Autonomous Welfare Application Agent. Reference ID: ${referenceId}.`,
                     lastSyncedAt: new Date(),
                 },
             });
@@ -161,7 +161,7 @@ export async function POST(req: NextRequest) {
             data: {
                 userId: session.user.id,
                 title: `Application Registered: ${scheme.title.slice(0, 35)}...`,
-                message: `Your application has been submitted via Playwright Autonomous Agent. Reference ID: ${referenceId}. Receipt slip deposited into your Document Vault.`,
+                message: `Your application has been submitted via Autonomous Application Agent. Reference ID: ${referenceId}. Receipt slip deposited into your Document Vault.`,
                 type: "application_update",
                 link: "/applications",
             },
