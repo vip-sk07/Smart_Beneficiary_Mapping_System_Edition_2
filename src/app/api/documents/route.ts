@@ -74,16 +74,15 @@ export async function POST(req: NextRequest) {
                             break;
                         }
                     }
-                    if (matchedScheme) {
-                        await sendAutomatedCitizenAlert({
-                            userId: user.id,
-                            phone: user.phone,
-                            schemeTitle: matchedScheme.title,
-                            schemeBenefit: matchedScheme.benefits ? matchedScheme.benefits.slice(0, 120).replace(/\*\*/g, "") : "Direct Benefit Transfer (DBT)",
-                            portalLink: `${process.env.NEXTAUTH_URL || "https://smart-beneficiary-mapping-system.vercel.app"}/schemes/${matchedScheme.id}`,
-                            triggerReason: "DOCUMENT_VERIFIED"
-                        });
-                    }
+                    const { sendAutomatedCitizenAlert } = await import("@/lib/notifications");
+                    await sendAutomatedCitizenAlert({
+                        userId: user.id,
+                        phone: user.phone,
+                        schemeTitle: matchedScheme ? matchedScheme.title : `${name} (${type}) Verified`,
+                        schemeBenefit: matchedScheme?.benefits ? matchedScheme.benefits.slice(0, 120).replace(/\*\*/g, "") : "Document securely deposited in encrypted Vault",
+                        portalLink: matchedScheme ? `${process.env.NEXTAUTH_URL || "https://smart-beneficiary-mapping-system.vercel.app"}/schemes/${matchedScheme.id}` : `${process.env.NEXTAUTH_URL || "https://smart-beneficiary-mapping-system.vercel.app"}/documents`,
+                        triggerReason: "DOCUMENT_VERIFIED"
+                    });
                 }
             } catch (bgErr) {
                 console.error("[BG AUTO-WHATSAPP TRIGGER ERROR]", bgErr);

@@ -222,63 +222,69 @@ function extractMessageText(msg: any): string {
             }
 
             const myNumber = (sock?.user?.id || "").split(":")[0].replace(/\D/g, "");
+            const myJid = myNumber ? `${myNumber.length === 10 ? '91' + myNumber : myNumber}@s.whatsapp.net` : "919384102655@s.whatsapp.net";
 
-            // Accurately determine phone number (handling LID, self-chat, and multi-device)
+            // Determine if this is the bot host testing in self-chat ("Message yourself")
+            const isSelfChat = Boolean(fromMe || (myNumber && remoteJid.replace(/\D/g, "").endsWith(myNumber.slice(-10))));
+
+            // Accurately determine phone number of the sender
             let cleanPhone10 = "";
-            if (fromMe && myNumber) {
-                cleanPhone10 = myNumber.slice(-10);
-            } else if (remoteJid && remoteJid.endsWith("@s.whatsapp.net")) {
-                const digits = remoteJid.split("@")[0].replace(/\D/g, "");
-                cleanPhone10 = digits.length >= 10 ? digits.slice(-10) : "";
-            } else if (m.key.participant && m.key.participant.endsWith("@s.whatsapp.net")) {
-                const digits = m.key.participant.split("@")[0].replace(/\D/g, "");
-                cleanPhone10 = digits.length >= 10 ? digits.slice(-10) : "";
-            } else if (fromMe || !remoteJid.endsWith("@s.whatsapp.net")) {
+            const senderPushName = m.pushName || "";
+
+            if (isSelfChat) {
+                // Host testing in self-chat
                 cleanPhone10 = myNumber ? myNumber.slice(-10) : "9384102655";
+            } else {
+                // Real external user (User1)
+                if (remoteJid.endsWith("@s.whatsapp.net")) {
+                    const digits = remoteJid.split("@")[0].replace(/\D/g, "");
+                    if (digits.length >= 10) cleanPhone10 = digits.slice(-10);
+                } else if (m.key.participant && m.key.participant.endsWith("@s.whatsapp.net")) {
+                    const digits = m.key.participant.split("@")[0].replace(/\D/g, "");
+                    if (digits.length >= 10) cleanPhone10 = digits.slice(-10);
+                }
             }
 
-            // Helper to dispatch replies reliably to standard Phone JIDs (@s.whatsapp.net)
+            // Helper to dispatch replies reliably to the ACTUAL SENDER
             const dispatchReply = async (replyPayload: string | any) => {
                 const messageObj = typeof replyPayload === "string" ? { text: replyPayload } : replyPayload;
-
                 const targets = new Set<string>();
 
-                // 1. If remoteJid is already a standard phone JID (@s.whatsapp.net), use it
-                if (remoteJid && remoteJid.endsWith("@s.whatsapp.net")) {
-                    targets.add(remoteJid.split(":")[0] + "@s.whatsapp.net");
-                }
+                if (isSelfChat) {
+                    // Host self-chat: dispatch to bot host number
+                    targets.add(myJid);
+                    if (remoteJid && remoteJid.endsWith("@s.whatsapp.net")) {
+                        targets.add(remoteJid.split(":")[0] + "@s.whatsapp.net");
+                    }
+                } else {
+                    // EXTERNAL CITIZEN (User1): Dispatch strictly to User1's chat / phone
+                    // NEVER send to host bot number (myJid / 9384102655)!
+                    targets.add(remoteJid);
 
-                // 2. If participant exists and is a standard phone JID
-                const participant = m.key.participant || (m as any).participant || "";
-                if (participant && participant.endsWith("@s.whatsapp.net")) {
-                    targets.add(participant.split(":")[0] + "@s.whatsapp.net");
-                }
-
-                // 3. Add authenticated socket owner JID (for self-chat & testing)
-                if (fromMe || !remoteJid.endsWith("@s.whatsapp.net")) {
-                    if (myNumber) {
-                        const cleanMy = myNumber.length === 10 ? `91${myNumber}` : myNumber;
-                        targets.add(`${cleanMy}@s.whatsapp.net`);
+                    if (remoteJid.endsWith("@s.whatsapp.net")) {
+                        targets.add(remoteJid.split(":")[0] + "@s.whatsapp.net");
+                    }
+                    if (cleanPhone10 && cleanPhone10.length === 10) {
+                        targets.add(`91${cleanPhone10}@s.whatsapp.net`);
+                    }
+                    const participant = m.key.participant || (m as any).participant || "";
+                    if (participant && participant.endsWith("@s.whatsapp.net")) {
+                        targets.add(participant.split(":")[0] + "@s.whatsapp.net");
                     }
                 }
 
-                // 4. If remote digits are a 10-digit phone number (and not an LID), add 91 prefix
-                if (cleanPhone10 && cleanPhone10.length === 10 && !remoteJid.endsWith("@lid")) {
-                    targets.add(`91${cleanPhone10}@s.whatsapp.net`);
-                }
-
-                // 5. If destinationJid exists on deviceSentMessage and is a phone JID
-                const deviceDestJid = (m.message as any)?.deviceSentMessage?.destinationJid || "";
-                if (deviceDestJid && deviceDestJid.endsWith("@s.whatsapp.net")) {
-                    targets.add(deviceDestJid.split(":")[0] + "@s.whatsapp.net");
-                }
-
-                addLog(`🎯 Dispatching to targets: [${Array.from(targets).join(", ")}]`);
+                addLog(`🎯 Dispatching to targets: [${Array.from(targets).join(", ")}] (isSelfChat: ${isSelfChat}, fromMe: ${fromMe})`);
 
                 let sentCount = 0;
                 for (const target of targets) {
-                    // Safety: Never send directly to @lid or @g.us
-                    if (target.endsWith("@lid") || target.endsWith("@g.us")) continue;
+                    // Safety: Never send to group chats or broadcasts
+                    if (target.endsWith("@g.us") || target === "status@broadcast") continue;
+
+                    // STRICT RULE: If this is an external user message, NEVER send to the host bot number!
+                    if (!isSelfChat && (target === myJid || target.replace(/\D/g, "").endsWith("9384102655"))) {
+                        continue;
+                    }
+
                     try {
                         const res = await sock?.sendMessage(target, messageObj as any);
                         if (res?.key?.id) {
@@ -294,18 +300,38 @@ function extractMessageText(msg: any): string {
                 return sentCount > 0;
             };
 
-            // Resolve Citizen Profile by Phone if available
+            // Resolve Citizen Profile by Phone
             let citizenId: string | undefined = undefined;
             if (cleanPhone10 && cleanPhone10.length === 10) {
                 try {
                     const u = await prisma.user.findFirst({
                         where: { phone: { contains: cleanPhone10 } },
-                        select: { id: true }
+                        select: { id: true, name: true }
                     });
-                    if (u) citizenId = u.id;
+                    if (u) {
+                        citizenId = u.id;
+                        addLog(`👤 Matched Citizen Profile: ${u.name} (${cleanPhone10})`);
+                    }
                 } catch {}
             }
-            if (!citizenId && (fromMe || cleanPhone10 === "9384102655")) {
+
+            // Fallback match by pushName if cleanPhone10 was unparseable (e.g. LID)
+            if (!citizenId && senderPushName && !isSelfChat) {
+                try {
+                    const u = await prisma.user.findFirst({
+                        where: { name: { equals: senderPushName, mode: "insensitive" } },
+                        select: { id: true, phone: true }
+                    });
+                    if (u) {
+                        citizenId = u.id;
+                        if (!cleanPhone10 && u.phone) cleanPhone10 = u.phone.slice(-10);
+                        addLog(`👤 Matched Citizen Profile by Name: ${senderPushName}`);
+                    }
+                } catch {}
+            }
+
+            // ONLY load host profile if this is an explicit self-chat test
+            if (!citizenId && isSelfChat) {
                 try {
                     const u = await prisma.user.findFirst({
                         where: { phone: { contains: "9384102655" } },
@@ -389,7 +415,7 @@ function extractMessageText(msg: any): string {
                     console.log(`[BHASHINI AI] 🗣️ Heard: "${transcriptionResult.transcript}" (${transcriptionResult.detectedLanguage})`);
 
                     const heardHeader = `🎙️ *Bhashini Indic Voice Assistant (${transcriptionResult.detectedLanguage.toUpperCase()}):*\n🗣️ _"${transcriptionResult.transcript}"_\n━━━━━━━━━━━━━━━━━━━━\n\n`;
-                    const conversationReply = await processIncomingWhatsAppMessage(transcriptionResult.transcript, citizenId, cleanPhone10);
+                    const conversationReply = await processIncomingWhatsAppMessage(transcriptionResult.transcript, citizenId, cleanPhone10, isSelfChat);
 
                     await dispatchReply(`${heardHeader}${conversationReply.replyText}`);
                     continue;
@@ -528,21 +554,26 @@ function extractMessageText(msg: any): string {
                     }
 
                     if (!appToUse) {
-                        appToUse = {
-                            id: "cmu0te8ya000004l78pxfz4h2",
-                            scheme: { title: "National Solar Science Fellowship Programme" },
-                            user: { name: "Karan Raj T", state: "Tamil Nadu" },
-                            externalApplicationId: "SBMS-APP-2026-583096",
-                            externalPortal: "Autonomous Welfare Gateway (edistricts.gov.in)",
-                            submittedAt: new Date("2026-09-14")
-                        };
+                        if (isSelfChat) {
+                            appToUse = {
+                                id: "cmu0te8ya000004l78pxfz4h2",
+                                scheme: { title: "National Solar Science Fellowship Programme" },
+                                user: { name: "Karan Raj T", state: "Tamil Nadu" },
+                                externalApplicationId: "SBMS-APP-2026-583096",
+                                externalPortal: "Autonomous Welfare Gateway (edistricts.gov.in)",
+                                submittedAt: new Date("2026-09-14")
+                            };
+                        } else {
+                            await dispatchReply(`🏛️ *SBMS ACKNOWLEDGMENT SLIP*\n━━━━━━━━━━━━━━━━━━━━\nℹ️ *No Submitted Applications Found:*\nWe could not find any active scheme applications registered under your phone number.\n\n👉 Discover and apply for welfare schemes:\n🔗 https://smart-beneficiary-mapping-system.vercel.app/schemes\n\n💬 _Reply with *SHOW* to view eligible schemes or *MENU* for commands._`);
+                            continue;
+                        }
                     }
 
                     const refNo = appToUse.externalApplicationId || `SBMS-ACK-${appToUse.id.slice(-6).toUpperCase()}`;
                     const pdfBuf = generateAckSlipBuffer({
                         referenceId: refNo,
                         schemeTitle: appToUse.scheme.title,
-                        applicantName: appToUse.user?.name || "Karan Raj T",
+                        applicantName: appToUse.user?.name || "Citizen",
                         state: appToUse.user?.state || "Tamil Nadu",
                         portalName: appToUse.externalPortal || "Autonomous Welfare Gateway",
                         submittedAt: new Date(appToUse.submittedAt).toLocaleString("en-IN")
@@ -558,7 +589,7 @@ function extractMessageText(msg: any): string {
 
                     if (!sentDoc) {
                         addLog(`⚠️ PDF dispatch unconfirmed, sending text slip fallback`);
-                        await dispatchReply(`🏛️ *OFFICIAL APPLICATION ACKNOWLEDGMENT SLIP*\n━━━━━━━━━━━━━━━━━━━━\n📌 *Scheme:* *${appToUse.scheme.title}*\n🎫 *Reference ID:* \`${refNo}\`\n👤 *Applicant:* ${appToUse.user?.name || "Karan Raj T"}\n🏛️ *Portal:* ${appToUse.externalPortal || "Autonomous Welfare Gateway"}\n📅 *Submitted:* ${new Date(appToUse.submittedAt).toLocaleDateString("en-IN")}\n✅ *Status:* SUBMITTED & VERIFIED VIA AUTONOMOUS AGENT\n\n🔗 *Download PDF Online:* https://smart-beneficiary-mapping-system.vercel.app/applications`);
+                        await dispatchReply(`🏛️ *OFFICIAL APPLICATION ACKNOWLEDGMENT SLIP*\n━━━━━━━━━━━━━━━━━━━━\n📌 *Scheme:* *${appToUse.scheme.title}*\n🎫 *Reference ID:* \`${refNo}\`\n👤 *Applicant:* ${appToUse.user?.name || "Citizen"}\n🏛️ *Portal:* ${appToUse.externalPortal || "Autonomous Welfare Gateway"}\n📅 *Submitted:* ${new Date(appToUse.submittedAt).toLocaleDateString("en-IN")}\n✅ *Status:* SUBMITTED & VERIFIED VIA AUTONOMOUS AGENT\n\n🔗 *Download PDF Online:* https://smart-beneficiary-mapping-system.vercel.app/applications`);
                     }
                     continue;
                 } catch (slipErr) {
@@ -569,7 +600,7 @@ function extractMessageText(msg: any): string {
 
             // ─── 3B. STANDARD CONVERSATIONAL ENGINE DISPATCH ──────────────────
             try {
-                const reply = await processIncomingWhatsAppMessage(text, citizenId, cleanPhone10);
+                const reply = await processIncomingWhatsAppMessage(text, citizenId, cleanPhone10, isSelfChat);
                 if (reply && reply.replyText) {
                     addLog(`💬 Generated conversation reply for "${text}". Length: ${reply.replyText.length}`);
                     await dispatchReply(reply.replyText);

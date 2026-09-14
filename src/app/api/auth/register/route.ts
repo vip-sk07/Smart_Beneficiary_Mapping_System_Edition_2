@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
                 state: state || undefined,
                 address: address || undefined,
             },
-            select: { id: true, name: true, email: true },
+            select: { id: true, name: true, email: true, phone: true },
         });
 
         try {
@@ -84,6 +84,23 @@ export async function POST(req: NextRequest) {
             }
         } catch (emailErr) {
             console.error("Failed to send welcome email:", emailErr);
+        }
+
+        // 🚀 Trigger WhatsApp Welcome & Command Directory to newly registered user
+        if (phone) {
+            (async () => {
+                try {
+                    const { sendAutomatedCitizenAlert } = await import("@/lib/notifications");
+                    await sendAutomatedCitizenAlert({
+                        userId: user.id,
+                        phone: phone,
+                        schemeTitle: "Smart Beneficiary Mapping System (SBMS)",
+                        triggerReason: "INITIAL_ALERT"
+                    });
+                } catch (waErr) {
+                    console.error("Failed to dispatch WhatsApp welcome alert:", waErr);
+                }
+            })();
         }
 
         return NextResponse.json(
