@@ -8,11 +8,12 @@ import HouseholdWelfareValueCard from "@/components/welfare/HouseholdWelfareValu
 import LifeEventTriggersCard from "@/components/welfare/LifeEventTriggersCard";
 import { embedText } from "@/lib/embeddings";
 import { searchSimilarSchemes } from "@/lib/rag";
+import VaultReadinessWidget from "@/components/dashboard/VaultReadinessWidget";
+import WhatsAppAssistantWidget from "@/components/dashboard/WhatsAppAssistantWidget";
 import {
     FileText,
     CheckCircle2,
     Clock,
-    Search,
     AlertCircle,
     Megaphone,
     ArrowRight,
@@ -20,7 +21,6 @@ import {
     ShieldCheck,
     Sparkles,
     TrendingUp,
-    ChevronRight,
     Star,
     AlertTriangle,
 } from "lucide-react";
@@ -41,6 +41,7 @@ export default async function DashboardPage() {
         grievanceCounts,
         announcements,
         expiringDocuments,
+        userDocuments,
         user,
     ] = await Promise.all([
         prisma.scheme.count({ where: { isActive: true } }),
@@ -76,6 +77,16 @@ export default async function DashboardPage() {
             },
             orderBy: { expiresAt: "asc" },
             take: 3,
+        }),
+        prisma.document.findMany({
+            where: { userId },
+            select: {
+                id: true,
+                name: true,
+                type: true,
+                expiresAt: true,
+            },
+            orderBy: { createdAt: "desc" },
         }),
         (prisma as any).user.findUnique({
             where: { id: userId },
@@ -129,60 +140,7 @@ export default async function DashboardPage() {
         applicationCounts.map((a) => [a.status, a._count])
     );
     const totalApps = applicationCounts.reduce((s, a) => s + a._count, 0);
-    const openGrievances = grievanceCounts
-        .filter((g) => g.status === "OPEN" || g.status === "IN_PROGRESS")
-        .reduce((s, g) => s + g._count, 0);
-
     const firstName = session.user.name?.split(" ")[0] ?? "there";
-
-    const quickActions = [
-        {
-            href: "/schemes",
-            icon: <Search size={20} />,
-            label: "Browse All Schemes",
-            sub: `${schemeCount} schemes available`,
-            color: "#4338ca",
-            bg: "rgba(99,102,241,0.1)",
-            gradient: "linear-gradient(135deg, #4338ca, #6366f1)",
-        },
-        {
-            href: "/ai-finder",
-            icon: <Sparkles size={20} />,
-            label: "AI Finder",
-            sub: "Describe your situation, AI finds schemes",
-            color: "#c026d3",
-            bg: "rgba(192,38,211,0.1)",
-            gradient: "linear-gradient(135deg, #c026d3, #f472b6)",
-            isNew: true,
-        },
-        {
-            href: "/eligibility",
-            icon: <ShieldCheck size={20} />,
-            label: "Eligibility Check",
-            sub: "See what schemes you qualify for",
-            color: "#0891b2",
-            bg: "rgba(8,145,178,0.1)",
-            gradient: "linear-gradient(135deg, #0891b2, #22d3ee)",
-        },
-        {
-            href: "/grievances",
-            icon: <AlertCircle size={20} />,
-            label: "Submit Grievance",
-            sub: openGrievances > 0 ? `${openGrievances} open grievance(s)` : "Report an issue",
-            color: "#ea580c",
-            bg: "rgba(234,88,12,0.1)",
-            gradient: "linear-gradient(135deg, #ea580c, #fb923c)",
-        },
-        {
-            href: "/applications",
-            icon: <FileText size={20} />,
-            label: "Track Applications",
-            sub: `${totalApps} total application(s)`,
-            color: "#7c3aed",
-            bg: "rgba(124,58,237,0.1)",
-            gradient: "linear-gradient(135deg, #7c3aed, #a78bfa)",
-        },
-    ];
 
     return (
         <DashboardAnimate>
@@ -228,41 +186,10 @@ export default async function DashboardPage() {
 
                 <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 24 }}>
                     {/* Quick Actions */}
-                    <div>
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-                            <h2 style={{ fontSize: 16, fontWeight: 800, color: "#0f172a", letterSpacing: "-0.01em" }}>Quick Actions</h2>
-                            <span style={{ fontSize: 12, color: "#64748b", fontWeight: 500 }}>Shortcuts to key features</span>
-                        </div>
-                        <div style={{
-                            display: "grid",
-                            gridTemplateColumns: "1fr 1fr",
-                            gap: 12,
-                        }}>
-                            {quickActions.map((item) => (
-                                <Link
-                                    key={item.href}
-                                    href={item.href}
-                                    style={{ textDecoration: "none", display: "flex", flexDirection: "column", gap: 10, padding: "16px", borderRadius: 16, background: "white", border: "1.5px solid #e8edf5", cursor: "pointer", transition: "all 0.18s ease", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}
-                                    className="group"
-                                >
-                                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                                        <div style={{ width: 40, height: 40, borderRadius: 12, background: item.bg, color: item.color, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                                            {item.icon}
-                                        </div>
-                                        {(item as any).isNew && (
-                                            <span style={{ fontSize: 9, fontWeight: 800, background: "linear-gradient(135deg, #f472b6, #c084fc)", color: "white", padding: "2px 7px", borderRadius: 99, letterSpacing: "0.06em" }}>NEW</span>
-                                        )}
-                                    </div>
-                                    <div>
-                                        <div style={{ fontSize: 13.5, fontWeight: 700, color: "#0f172a", marginBottom: 3 }}>{item.label}</div>
-                                        <div style={{ fontSize: 12, color: "#64748b", lineHeight: 1.4, fontWeight: 400 }}>{item.sub}</div>
-                                    </div>
-                                    <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 600, color: item.color }}>
-                                        Open <ChevronRight size={13} />
-                                    </div>
-                                </Link>
-                            ))}
-                        </div>
+                    {/* Citizen Vault Readiness & WhatsApp Autonomous Companion */}
+                    <div style={{ display: "flex", flexDirection: "column" }}>
+                        <VaultReadinessWidget documents={userDocuments} userAadhaar={user?.aadhaarNo} />
+                        <WhatsAppAssistantWidget botNumber="919384102655" userName={firstName} />
                     </div>
 
                     {/* AI Recommendations */}
