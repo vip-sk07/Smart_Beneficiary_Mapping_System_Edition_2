@@ -250,17 +250,35 @@ const processedMessageIds = new Set<string>();
             }
 
             try {
-                // Call 3-Step State Machine
+                // Call Conversational State Machine
                 const reply = await processIncomingWhatsAppMessage(text, citizenId);
                 if (reply && reply.replyText) {
-                    // Send directly to the active incoming chat thread (handles @s.whatsapp.net, @lid, and self-chats)
-                    await sock?.sendMessage(remoteJid, { text: reply.replyText });
-                    if (m.key.fromMe && myNumber && remoteJid !== `${myNumber}@s.whatsapp.net`) {
+                    const cleanRemote = remoteJid.includes("@s.whatsapp.net") ? (remoteJid.split(":")[0] + "@s.whatsapp.net") : remoteJid;
+
+                    // 1. Dispatch directly to the active incoming chat thread
+                    try {
+                        await sock?.sendMessage(remoteJid, { text: reply.replyText });
+                    } catch (sendErr1) {
+                        console.warn("[WHATSAPP SEND WARNING 1]", sendErr1);
+                    }
+
+                    // 2. If remoteJid had a device colon index or was distinct from clean JID, dispatch to clean JID
+                    if (cleanRemote !== remoteJid) {
                         try {
-                            await sock?.sendMessage(`${myNumber}@s.whatsapp.net`, { text: reply.replyText });
+                            await sock?.sendMessage(cleanRemote, { text: reply.replyText });
                         } catch {}
                     }
-                    console.log(`[WHATSAPP OUTBOUND] 💬 Sent schemes reply to ${remoteJid}`);
+
+                    // 3. For Message Yourself (fromMe) testing, ensure message appears in user's main personal chat
+                    if (m.key.fromMe && myNumber) {
+                        const myJid = `${myNumber}@s.whatsapp.net`;
+                        if (remoteJid !== myJid && cleanRemote !== myJid) {
+                            try {
+                                await sock?.sendMessage(myJid, { text: reply.replyText });
+                            } catch {}
+                        }
+                    }
+                    console.log(`[WHATSAPP OUTBOUND] 💬 Dispatched reply to ${remoteJid}`);
                 }
             } catch (err) {
                 console.error("Failed to send WhatsApp reply:", err);
