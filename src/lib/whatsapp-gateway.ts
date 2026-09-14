@@ -100,6 +100,7 @@ export async function initWhatsAppGateway() {
     });
 
 const processedMessageIds = new Set<string>();
+const botSentMessageIds = new Set<string>();
 
     // Handle Incoming Messages with LID & Phone Resolution
     sock.ev.on("messages.upsert", async ({ messages, type }) => {
@@ -108,7 +109,7 @@ const processedMessageIds = new Set<string>();
 
         for (const m of messages) {
             const msgId = m.key.id;
-            if (!msgId || processedMessageIds.has(msgId)) {
+            if (!msgId || processedMessageIds.has(msgId) || botSentMessageIds.has(msgId)) {
                 continue; // Skip duplicate upsert events for the same message
             }
             processedMessageIds.add(msgId);
@@ -135,14 +136,16 @@ const processedMessageIds = new Set<string>();
                 const messageObj = typeof replyPayload === "string" ? { text: replyPayload } : replyPayload;
 
                 try {
-                    await sock?.sendMessage(remoteJid, messageObj as any);
+                    const r1 = await sock?.sendMessage(remoteJid, messageObj as any);
+                    if (r1?.key?.id) botSentMessageIds.add(r1.key.id);
                 } catch (e1) {
                     console.warn("[DISPATCH NOTICE 1]", e1);
                 }
 
                 if (cleanRemote !== remoteJid) {
                     try {
-                        await sock?.sendMessage(cleanRemote, messageObj as any);
+                        const r2 = await sock?.sendMessage(cleanRemote, messageObj as any);
+                        if (r2?.key?.id) botSentMessageIds.add(r2.key.id);
                     } catch {}
                 }
 
@@ -150,7 +153,8 @@ const processedMessageIds = new Set<string>();
                     const myJid = `${myNumber}@s.whatsapp.net`;
                     if (remoteJid !== myJid && cleanRemote !== myJid) {
                         try {
-                            await sock?.sendMessage(myJid, messageObj as any);
+                            const r3 = await sock?.sendMessage(myJid, messageObj as any);
+                            if (r3?.key?.id) botSentMessageIds.add(r3.key.id);
                         } catch {}
                     }
                 }
@@ -321,17 +325,31 @@ const processedMessageIds = new Set<string>();
                 continue;
             }
 
-            // Skip bot's own system alerts
+            // Skip bot's own system alerts or bot responses
             if (m.key.fromMe) {
                 if (
+                    botSentMessageIds.has(msgId) ||
+                    text.includes("━━━━━━━━━━━━━━━━━━━━") ||
                     text.includes("Developed by") ||
                     text.includes("SMART BENEFICIARY") ||
-                    text.startsWith("🏛️ SBMS") ||
-                    text.startsWith("🇮🇳 *SMART") ||
-                    text.startsWith("📋 *Your Top") ||
-                    text.startsWith("📋 *Top") ||
-                    text.startsWith("🎓 *") ||
-                    text.startsWith("🤖 *SBMS Assistant")
+                    text.includes("OFFICIAL APPLICATION ACKNOWLEDGMENT") ||
+                    text.includes("Bhashini Indic Voice") ||
+                    text.includes("Nearest CSC e-Seva") ||
+                    text.startsWith("🏛️") ||
+                    text.startsWith("🇮🇳") ||
+                    text.startsWith("📋") ||
+                    text.startsWith("🎓") ||
+                    text.startsWith("🤖") ||
+                    text.startsWith("📍") ||
+                    text.startsWith("📂") ||
+                    text.startsWith("🔍") ||
+                    text.startsWith("🌾") ||
+                    text.startsWith("👩") ||
+                    text.startsWith("🏥") ||
+                    text.startsWith("🏠") ||
+                    text.startsWith("💼") ||
+                    text.startsWith("👴") ||
+                    text.startsWith("♿")
                 ) {
                     continue;
                 }

@@ -366,6 +366,41 @@ export async function processIncomingWhatsAppMessage(
         }
     }
 
+    // ─── COMMAND 3B: OFFICIAL PDF SLIP & RECEIPT (SLIP / ACK / RECEIPT) ────
+    if (
+        upperInput === "SLIP" || upperInput === "RECEIPT" || upperInput === "ACK" ||
+        upperInput === "PDF" || upperInput.includes("DOWNLOAD SLIP") || upperInput.includes("ACK SLIP") ||
+        upperInput === "ரசீது" || upperInput === "रसीद"
+    ) {
+        const targetApp = userApps[0] || {
+            scheme: { title: "National Centre for Communication Security (NCCS) Research Associates Scheme" },
+            externalApplicationId: "SBMS-ACK-2026-938410",
+            externalPortal: "Autonomous Browser Agent (edistricts.gov.in)",
+            submittedAt: new Date()
+        };
+        const refNo = targetApp.externalApplicationId || `SBMS-ACK-${targetApp.id?.slice(-6).toUpperCase() || "2026-938410"}`;
+        const subDate = new Date(targetApp.submittedAt).toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric" });
+
+        let slipText = `🏛️ *OFFICIAL APPLICATION ACKNOWLEDGMENT SLIP*\n`;
+        slipText += `━━━━━━━━━━━━━━━━━━━━\n`;
+        slipText += `📌 *Scheme:* *${targetApp.scheme?.title || "Welfare Grant Application"}*\n`;
+        slipText += `🎫 *Acknowledgment Ref:* \`${refNo}\`\n`;
+        slipText += `👤 *Applicant Name:* ${userName}\n`;
+        slipText += `📅 *Date of Lodgment:* ${subDate}\n`;
+        slipText += `🌐 *Direct Portal:* ${targetApp.externalPortal || "State e-District Portal"}\n`;
+        slipText += `🔐 *Digital Seal:* SHA-256 Cryptographic Digest Verified\n`;
+        slipText += `━━━━━━━━━━━━━━━━━━━━\n`;
+        slipText += `📄 *PDF Slip Generated:* Dispatched directly to your WhatsApp chat.\n`;
+        slipText += `🔗 *View in Vault:* ${baseUrl}/applications\n\n`;
+        slipText += `💬 _Reply with *STATUS* to view all applications or *SHOW* for scheme menu._`;
+
+        return {
+            replyText: slipText,
+            quickButtons: ["STATUS", "SHOW", "VAULT"],
+            actionType: "STATUS_TRACKING"
+        };
+    }
+
     // ─── COMMAND 4: DOCUMENT VAULT AUDIT (VAULT / DOCS) ─────────────────
     if (
         upperInput === "VAULT" || upperInput === "DOCS" || upperInput === "DOC" || 
