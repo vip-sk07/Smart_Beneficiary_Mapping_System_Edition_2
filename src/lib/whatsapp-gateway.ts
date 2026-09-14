@@ -182,10 +182,20 @@ const botSentMessageIds = new Set<string>();
                 console.error("DB query error:", err);
             }
 
+            // Unwrap any nested or ephemeral WhatsApp messages
+            const actualMsg =
+                m.message?.ephemeralMessage?.message ||
+                m.message?.viewOnceMessage?.message ||
+                m.message?.viewOnceMessageV2?.message ||
+                m.message?.documentWithCaptionMessage?.message ||
+                m.message;
+
+            if (!actualMsg) continue;
+
             // ─── 1. GPS LOCATION MESSAGE HANDLER (e-Seva / CSC Center Matcher) ──
-            if (m.message?.locationMessage) {
-                const lat = m.message.locationMessage.degreesLatitude;
-                const lng = m.message.locationMessage.degreesLongitude;
+            if (actualMsg.locationMessage) {
+                const lat = actualMsg.locationMessage.degreesLatitude;
+                const lng = actualMsg.locationMessage.degreesLongitude;
 
                 if (lat && lng) {
                     console.log(`[WHATSAPP GPS] 📍 Received Location: ${lat}, ${lng} from ${remoteJid}`);
@@ -232,11 +242,11 @@ const botSentMessageIds = new Set<string>();
             }
 
             // ─── 2. BHASHINI / INDIC SPEECH VOICE NOTE HANDLER ─────────────────
-            if (m.message?.audioMessage) {
+            if (actualMsg.audioMessage) {
                 try {
                     console.log(`[WHATSAPP VOICE] 🎙️ Processing Voice Note from ${remoteJid}...`);
                     const audioBuffer = await downloadMediaMessage(m, "buffer", {});
-                    const mimeType = m.message.audioMessage.mimetype || "audio/ogg";
+                    const mimeType = actualMsg.audioMessage.mimetype || "audio/ogg";
 
                     const { transcribeCitizenVoiceNote } = await import("@/lib/bhashini");
                     const transcriptionResult = await transcribeCitizenVoiceNote(audioBuffer as Buffer, mimeType);
@@ -255,12 +265,13 @@ const botSentMessageIds = new Set<string>();
 
             // ─── 3. TEXT MESSAGE PROCESSING & PDF SLIP DELIVERY ────────────────
             const messageContent =
-                m.message?.conversation ||
-                m.message?.extendedTextMessage?.text ||
-                m.message?.buttonsResponseMessage?.selectedButtonId ||
-                m.message?.listResponseMessage?.singleSelectReply?.selectedRowId ||
-                m.message?.templateButtonReplyMessage?.selectedId ||
-                m.message?.imageMessage?.caption ||
+                actualMsg.conversation ||
+                actualMsg.extendedTextMessage?.text ||
+                actualMsg.buttonsResponseMessage?.selectedButtonId ||
+                actualMsg.listResponseMessage?.singleSelectReply?.selectedRowId ||
+                actualMsg.templateButtonReplyMessage?.selectedId ||
+                actualMsg.imageMessage?.caption ||
+                actualMsg.documentMessage?.caption ||
                 "";
 
             const text = messageContent.trim();
