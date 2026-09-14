@@ -34,6 +34,14 @@ let connectionStatus: "DISCONNECTED" | "SCAN_QR" | "CONNECTED" = "DISCONNECTED";
 const AUTH_DIR = path.join(process.cwd(), ".auth_whatsapp");
 const IPC_PORT = process.env.PORT ? parseInt(process.env.PORT) : 10000;
 
+const debugLogs: string[] = [];
+function addLog(msg: string) {
+    const entry = `[${new Date().toISOString()}] ${msg}`;
+    console.log(entry);
+    debugLogs.push(entry);
+    if (debugLogs.length > 300) debugLogs.shift();
+}
+
 export function getGatewayStatus() {
     return {
         status: connectionStatus,
@@ -112,13 +120,17 @@ const botSentMessageIds = new Set<string>();
 
     // Handle Incoming Messages with LID & Phone Resolution
     sock.ev.on("messages.upsert", async ({ messages, type }) => {
-        // Accept both "notify" (inbound messages) and "append" (self-sent / synced test messages)
-        if (type !== "notify" && type !== "append") return;
+        addLog(`⚡ messages.upsert event: type=${type}, count=${messages.length}`);
 
         for (const m of messages) {
             const msgId = m.key.id;
+            const remoteJid = m.key.remoteJid || "";
+            const fromMe = m.key.fromMe;
+            addLog(`📩 Msg item: id=${msgId}, fromMe=${fromMe}, remoteJid=${remoteJid}`);
+
             if (!msgId || processedMessageIds.has(msgId) || botSentMessageIds.has(msgId)) {
-                continue; // Skip duplicate upsert events for the same message
+                addLog(`⏭️ Skipped: duplicate msgId or botSentMessageId (${msgId})`);
+                continue;
             }
             processedMessageIds.add(msgId);
             if (processedMessageIds.size > 2000) {
@@ -126,11 +138,11 @@ const botSentMessageIds = new Set<string>();
                 if (first) processedMessageIds.delete(first);
             }
 
-            const remoteJid = m.key.remoteJid;
             if (!remoteJid) continue;
 
             // 🛡️ RULE 1: Ignore all WhatsApp Group chats & Status broadcasts completely
             if (remoteJid.endsWith("@g.us") || remoteJid === "status@broadcast") {
+                addLog(`⏭️ Skipped: group or status broadcast (${remoteJid})`);
                 continue;
             }
 
@@ -160,6 +172,8 @@ const botSentMessageIds = new Set<string>();
                     targets.add(`91${cleanPhone10}@s.whatsapp.net`);
                 }
 
+                addLog(`🎯 Dispatching to targets: [${Array.from(targets).join(", ")}]`);
+
                 let sentCount = 0;
                 for (const target of targets) {
                     // Safety: Never send directly to @lid or @g.us
@@ -169,8 +183,10 @@ const botSentMessageIds = new Set<string>();
                         if (res?.key?.id) {
                             botSentMessageIds.add(res.key.id);
                             sentCount++;
+                            addLog(`✅ Successfully dispatched to ${target} (id: ${res.key.id})`);
                         }
-                    } catch (e1) {
+                    } catch (e1: any) {
+                        addLog(`⚠️ Failed dispatch to ${target}: ${e1?.message || e1}`);
                         console.warn(`[DISPATCH NOTICE] Failed dispatch to ${target}:`, e1);
                     }
                 }
@@ -273,10 +289,14 @@ const botSentMessageIds = new Set<string>();
                 "";
 
             const text = messageContent.trim();
-            if (!text) continue;
+            if (!text) {
+                addLog(`⏭️ Skipped: empty text content`);
+                continue;
+            }
 
             // Extract command text
             const upper = text.toUpperCase();
+            addLog(`📝 Received Text: "${text}" (upper: "${upper}") from ${remoteJid} (fromMe: ${m.key.fromMe})`);
             const isCommand = [
                 "SHOW", "1", "2", "3", "4", "5", "6", "7", "8", "9", "SCHEMES", 
                 "STATUS", "TRACK", "APP", "APPS", "APPLICATION", "APPLICATIONS",
@@ -333,6 +353,7 @@ const botSentMessageIds = new Set<string>();
 
             // IF CASUAL PERSONAL CHAT -> IGNORE COMPLETELY
             if (!isCommand && !isSchemeQuery) {
+                addLog(`⏭️ Skipped: not a recognized command or query ("${text}")`);
                 continue;
             }
 
@@ -362,11 +383,12 @@ const botSentMessageIds = new Set<string>();
                     text.startsWith("👴") ||
                     text.startsWith("♿")
                 ) {
+                    addLog(`⏭️ Skipped: bot's own response echo ("${text.slice(0, 30)}...")`);
                     continue;
                 }
             }
 
-            console.log(`[WHATSAPP INBOUND] 📩 Processing Command: "${text}" from ${remoteJid}`);
+            addLog(`🚀 Processing Valid Inbound Command: "${text}" from ${remoteJid}`);
 
             // ─── 3A. PDF ACKNOWLEDGMENT SLIP GENERATION & DISPATCH ─────────────
             if (upper === "SLIP" || upper === "RECEIPT" || upper === "ACK" || upper === "PDF" || upper.includes("DOWNLOAD SLIP") || upper.includes("ACK SLIP") || upper === "ரசீது") {
@@ -402,15 +424,16 @@ const botSentMessageIds = new Set<string>();
                         submittedAt: new Date(appToUse.submittedAt).toLocaleString("en-IN")
                     });
 
+                    addLog(`📄 Dispatched PDF slip to ${remoteJid}`);
                     await dispatchReply({
                         document: pdfBuf,
                         mimetype: "application/pdf",
                         fileName: `SBMS_Acknowledgment_${refNo}.pdf`,
                         caption: `🏛️ *OFFICIAL APPLICATION ACKNOWLEDGMENT SLIP*\n━━━━━━━━━━━━━━━━━━━━\n📌 *Scheme:* *${appToUse.scheme.title}*\n🎫 *Reference ID:* \`${refNo}\`\n✅ Signed & Deposited into Document Vault.`
                     });
-                    console.log(`[WHATSAPP MEDIA] 📄 Dispatched PDF slip to ${remoteJid}`);
                     continue;
                 } catch (slipErr) {
+                    addLog(`⚠️ Error generating PDF slip: ${slipErr}`);
                     console.error("Failed to generate PDF slip:", slipErr);
                 }
             }
@@ -419,10 +442,11 @@ const botSentMessageIds = new Set<string>();
             try {
                 const reply = await processIncomingWhatsAppMessage(text, citizenId);
                 if (reply && reply.replyText) {
+                    addLog(`💬 Generated conversation reply for "${text}". Length: ${reply.replyText.length}`);
                     await dispatchReply(reply.replyText);
-                    console.log(`[WHATSAPP OUTBOUND] 💬 Dispatched reply to ${remoteJid}`);
                 }
             } catch (err) {
+                addLog(`⚠️ Failed to process conversation reply: ${err}`);
                 console.error("Failed to send WhatsApp reply:", err);
             }
         }
@@ -453,6 +477,20 @@ function startIPCServer() {
                 "Access-Control-Allow-Headers": "Content-Type, Authorization",
             });
             res.end();
+            return;
+        }
+
+        // 0. Live Debug Logs API (GET /logs or GET /api/logs)
+        if ((req.method === "GET" || req.method === "HEAD") && (parsedUrl.pathname === "/logs" || parsedUrl.pathname === "/api/logs")) {
+            res.writeHead(200, {
+                "Content-Type": "text/plain; charset=utf-8",
+                "Access-Control-Allow-Origin": "*",
+            });
+            if (req.method === "HEAD") {
+                res.end();
+                return;
+            }
+            res.end(debugLogs.length > 0 ? debugLogs.join("\n") : "No logs recorded yet. Socket is active and listening for messages.");
             return;
         }
 
