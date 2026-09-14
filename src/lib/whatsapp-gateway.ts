@@ -81,11 +81,19 @@ export async function initWhatsAppGateway() {
         }
 
         if (connection === "close") {
-            const shouldReconnect = (lastDisconnect?.error as Boom)?.output?.statusCode !== DisconnectReason.loggedOut;
+            const statusCode = (lastDisconnect?.error as Boom)?.output?.statusCode;
+            const isLoggedOut = statusCode === DisconnectReason.loggedOut;
             connectionStatus = "DISCONNECTED";
             currentQR = null;
-            console.log("⚠️ WhatsApp Gateway Connection closed. Reconnecting:", shouldReconnect);
-            if (shouldReconnect) {
+            console.log(`⚠️ WhatsApp Gateway Connection closed (Code ${statusCode}). Reconnecting...`);
+            if (isLoggedOut) {
+                try {
+                    if (fs.existsSync(AUTH_DIR)) {
+                        fs.rmSync(AUTH_DIR, { recursive: true, force: true });
+                    }
+                } catch {}
+                setTimeout(() => initWhatsAppGateway(), 2000);
+            } else {
                 setTimeout(() => initWhatsAppGateway(), 3000);
             }
         } else if (connection === "open") {
