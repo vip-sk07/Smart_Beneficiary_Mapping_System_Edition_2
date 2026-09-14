@@ -42,6 +42,10 @@ function addLog(msg: string) {
     if (debugLogs.length > 300) debugLogs.shift();
 }
 
+export function getGatewayLogs(): string[] {
+    return [...debugLogs];
+}
+
 export function getGatewayStatus() {
     return {
         status: connectionStatus,
