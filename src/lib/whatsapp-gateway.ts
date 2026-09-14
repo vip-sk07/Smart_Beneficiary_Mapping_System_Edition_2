@@ -584,7 +584,7 @@ function startIPCServer() {
                 res.end();
                 return;
             }
-            res.end(JSON.stringify({ status: "ok", gateway: connectionStatus, service: "SBMS WhatsApp Gateway", timestamp: new Date().toISOString() }));
+            res.end(JSON.stringify({ status: "ok", gateway: connectionStatus, service: "SBMS WhatsApp Gateway", build: "v2.2-unwrap-fix", timestamp: new Date().toISOString() }));
             return;
         }
 
