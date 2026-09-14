@@ -3,7 +3,10 @@ services:
     name: sbms-whatsapp-gateway
     env: node
     plan: free
-    buildCommand: npm install && npx prisma generate
+    buildCommand: |
+      export DATABASE_URL="postgresql://neondb_owner:npg_QhbpFA3r0uTk@ep-winter-meadow-a19fcj8w-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require"
+      export DIRECT_URL="postgresql://neondb_owner:npg_QhbpFA3r0uTk@ep-winter-meadow-a19fcj8w-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require"
+      npm install && npx prisma generate
     startCommand: npm run whatsapp
     envVars:
       - key: NODE_ENV
