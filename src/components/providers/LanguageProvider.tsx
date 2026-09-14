@@ -30,6 +30,7 @@ const translations: Translations = {
     "nav.announcements": { en: "Announcements", hi: "घोषणाएं", ta: "அறிவிப்புகள்", mr: "घोषणा", te: "ప్రకటనలు" },
     "nav.profile": { en: "Edit Profile", hi: "प्रोफ़ाइल संपादित करें", ta: "சுயவிவரம் திருத்தவும்", mr: "प्रोफाइल संपादित करा", te: "ప్రొఫైల్ సవరణ" },
     "nav.admin_panel": { en: "Admin Panel", hi: "व्यवस्थापक पैनल", ta: "நிர்வாகக் குழு", mr: "प्रशासक पॅनेल", te: "అడ్మిన్ ప్యానెల్" },
+    "nav.quick_access": { en: "Quick Access", hi: "त्वरित पहुंच", ta: "விரைவு அணுகல்", mr: "त्वरित प्रवेश", te: "త్వరిత ప్రాప్యత" },
     "nav.my_account": { en: "My Account", hi: "मेरा खाता", ta: "எனது கணக்கு", mr: "माझे खाते", te: "నా ఖాతా" },
     "nav.sign_out": { en: "Sign Out", hi: "साइन आउट", ta: "வெளியேறு", mr: "साइन आउट करा", te: "లాగ్ అవుట్" },
 

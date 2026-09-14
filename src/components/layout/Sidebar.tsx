@@ -24,7 +24,6 @@ import {
     Sparkles,
     ChevronRight,
     MapPin,
-    MessageSquare,
 } from "lucide-react";
 import NotificationBell from "@/components/ui/NotificationBell";
 import { useLanguage } from "@/components/providers/LanguageProvider";
@@ -59,7 +58,12 @@ const adminNavItems = [
     { href: "/admin/applications", label: "Manage Applications", icon: FileText, color: "#a855f7" },
     { href: "/admin/grievances", label: "Manage Grievances", icon: AlertCircle, color: "#f87171" },
     { href: "/admin/announcements", label: "Announcements", icon: Megaphone, color: "#fbbf24" },
-    { href: "/whatsapp-bot", label: "WhatsApp Gateway", icon: MessageSquare, color: "#22c55e" },
+];
+
+const adminUtilityNavItems = [
+    { href: "/schemes", label: "Browse Schemes", icon: Search, color: "#34d399" },
+    { href: "/chat", label: "AI Assistant", icon: Bot, color: "#2dd4bf" },
+    { href: "/profile", label: "Edit Profile", icon: User, color: "#94a3b8" },
 ];
 
 export default function Sidebar({
@@ -91,10 +95,6 @@ export default function Sidebar({
         href === "/dashboard" ? pathname === href : pathname.startsWith(href);
 
     const isAdmin = userRole === "ADMIN";
-    const ADMIN_ALLOWED = ["/dashboard", "/schemes", "/ai-finder", "/documents", "/eligibility", "/applications", "/chat", "/announcements", "/profile"];
-    const visibleUserNavItems = isAdmin
-        ? userNavItems.filter(item => ADMIN_ALLOWED.includes(item.href))
-        : userNavItems;
 
     return (
         <aside className="sidebar" style={{ display: "flex", flexDirection: "column" }}>
@@ -123,97 +123,160 @@ export default function Sidebar({
 
             {/* Nav */}
             <nav style={{ padding: "12px 10px 0", flex: 1, overflowY: "auto" }}>
-                <div className="section-label" style={{ paddingLeft: 6, marginBottom: 8 }}>{isAdmin ? t("nav.my_account", "My Account") : t("nav.navigation", "Navigation")}</div>
-
-                {visibleUserNavItems.map(({ href, label, icon: Icon, color, isNew }) => {
-                    const active = isActive(href);
-                    return (
-                        <Link
-                            key={href}
-                            href={href}
-                            onClick={(e) => {
-                                if (href === "/chat") {
-                                    e.preventDefault();
-                                    window.dispatchEvent(new Event('open-chat'));
-                                }
-                                onClose?.();
-                            }}
-                            className={`nav-item ${active ? "active" : ""}`}
-                            style={{ marginBottom: 2 }}
-                        >
-                            {/* Icon wrapper with subtle colored background when active */}
-                            <div style={{
-                                width: 30, height: 30, borderRadius: 8,
-                                display: "flex", alignItems: "center", justifyContent: "center",
-                                flexShrink: 0,
-                                background: active ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.05)",
-                                color: active ? "white" : color,
-                                transition: "all 0.15s ease",
-                            }}>
-                                <Icon size={15} />
-                            </div>
-
-                            <span style={{ flex: 1, fontSize: 13.5 }}>
-                                {t(`nav.${href.substring(1)}`, label)}
-                            </span>
-
-                            {/* Badges & indicators */}
-                            {href === "/announcements" && hasUnread && (
-                                <div style={{
-                                    width: 7, height: 7, background: "#f87171",
-                                    borderRadius: "50%",
-                                    boxShadow: "0 0 0 2px rgba(248,113,113,0.3)",
-                                }} />
-                            )}
-                            {isNew && !active && (
-                                <span style={{
-                                    fontSize: 9, fontWeight: 800,
-                                    background: "linear-gradient(135deg, #f472b6, #c084fc)",
-                                    color: "white",
-                                    padding: "2px 6px",
-                                    borderRadius: 99,
-                                    letterSpacing: "0.06em",
-                                    textTransform: "uppercase",
-                                }}>NEW</span>
-                            )}
-                            {active && <ChevronRight size={13} style={{ opacity: 0.7 }} />}
-                        </Link>
-                    );
-                })}
-
-                {/* Offline sync — hidden for admins */}
-                {!isAdmin && offlineCount > 0 && (
-                    <Link href="/offline-sync" onClick={onClose}
-                        className={`nav-item ${isActive("/offline-sync") ? "active" : ""}`}
-                        style={{ marginBottom: 2 }}>
-                        <div style={{ width: 30, height: 30, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(251,191,36,0.12)", color: "#fbbf24" }}>
-                            <WifiOff size={15} />
-                        </div>
-                        <span style={{ flex: 1, fontSize: 13.5 }}>Pending Sync</span>
-                        <div style={{ padding: "2px 7px", fontSize: 10, fontWeight: 800, background: "rgba(251,191,36,0.2)", color: "#fbbf24", borderRadius: 99, border: "1px solid rgba(251,191,36,0.3)" }}>
-                            {offlineCount}
-                        </div>
-                    </Link>
-                )}
-
-                {/* Admin */}
-                {userRole === "ADMIN" && (
+                {isAdmin ? (
                     <>
-                        <div className="section-label" style={{ paddingLeft: 6, marginTop: 16, marginBottom: 8 }}>{t("nav.admin_panel", "Admin Panel")}</div>
+                        <div className="section-label" style={{ paddingLeft: 6, marginBottom: 8 }}>
+                            {t("nav.admin_panel", "Admin Panel")}
+                        </div>
                         {adminNavItems.map(({ href, label, icon: Icon, color }) => {
+                            const active = isActive(href);
                             const adminKey = href.replace("/admin/", "");
                             const transKey = adminKey === "schemes" ? "manage_schemes" : adminKey === "applications" ? "manage_applications" : adminKey === "grievances" ? "manage_grievances" : adminKey;
                             return (
-                                <Link key={href} href={href} onClick={onClose}
-                                    className={`nav-item ${isActive(href) ? "active" : ""}`}
-                                    style={{ marginBottom: 2 }}>
-                                    <div style={{ width: 30, height: 30, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", background: isActive(href) ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.05)", color: isActive(href) ? "white" : color, transition: "all 0.15s ease" }}>
+                                <Link
+                                    key={href}
+                                    href={href}
+                                    onClick={onClose}
+                                    className={`nav-item ${active ? "active" : ""}`}
+                                    style={{ marginBottom: 2 }}
+                                >
+                                    <div style={{
+                                        width: 30, height: 30, borderRadius: 8,
+                                        display: "flex", alignItems: "center", justifyContent: "center",
+                                        flexShrink: 0,
+                                        background: active ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.05)",
+                                        color: active ? "white" : color,
+                                        transition: "all 0.15s ease",
+                                    }}>
                                         <Icon size={15} />
                                     </div>
-                                    <span style={{ fontSize: 13.5 }}>{t(`nav.${transKey}`, label)}</span>
+                                    <span style={{ flex: 1, fontSize: 13.5 }}>
+                                        {t(`nav.${transKey}`, label)}
+                                    </span>
+                                    {href === "/admin/announcements" && hasUnread && (
+                                        <div style={{
+                                            width: 7, height: 7, background: "#f87171",
+                                            borderRadius: "50%",
+                                            boxShadow: "0 0 0 2px rgba(248,113,113,0.3)",
+                                        }} />
+                                    )}
+                                    {active && <ChevronRight size={13} style={{ opacity: 0.7 }} />}
                                 </Link>
                             );
                         })}
+
+                        <div className="section-label" style={{ paddingLeft: 6, marginTop: 16, marginBottom: 8 }}>
+                            {t("nav.quick_access", "Quick Access")}
+                        </div>
+                        {adminUtilityNavItems.map(({ href, label, icon: Icon, color }) => {
+                            const active = isActive(href);
+                            return (
+                                <Link
+                                    key={href}
+                                    href={href}
+                                    onClick={(e) => {
+                                        if (href === "/chat") {
+                                            e.preventDefault();
+                                            window.dispatchEvent(new Event('open-chat'));
+                                        }
+                                        onClose?.();
+                                    }}
+                                    className={`nav-item ${active ? "active" : ""}`}
+                                    style={{ marginBottom: 2 }}
+                                >
+                                    <div style={{
+                                        width: 30, height: 30, borderRadius: 8,
+                                        display: "flex", alignItems: "center", justifyContent: "center",
+                                        flexShrink: 0,
+                                        background: active ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.05)",
+                                        color: active ? "white" : color,
+                                        transition: "all 0.15s ease",
+                                    }}>
+                                        <Icon size={15} />
+                                    </div>
+                                    <span style={{ flex: 1, fontSize: 13.5 }}>
+                                        {t(`nav.${href.substring(1)}`, label)}
+                                    </span>
+                                    {active && <ChevronRight size={13} style={{ opacity: 0.7 }} />}
+                                </Link>
+                            );
+                        })}
+                    </>
+                ) : (
+                    <>
+                        <div className="section-label" style={{ paddingLeft: 6, marginBottom: 8 }}>
+                            {t("nav.navigation", "Navigation")}
+                        </div>
+                        {userNavItems.map(({ href, label, icon: Icon, color, isNew }) => {
+                            const active = isActive(href);
+                            return (
+                                <Link
+                                    key={href}
+                                    href={href}
+                                    onClick={(e) => {
+                                        if (href === "/chat") {
+                                            e.preventDefault();
+                                            window.dispatchEvent(new Event('open-chat'));
+                                        }
+                                        onClose?.();
+                                    }}
+                                    className={`nav-item ${active ? "active" : ""}`}
+                                    style={{ marginBottom: 2 }}
+                                >
+                                    {/* Icon wrapper with subtle colored background when active */}
+                                    <div style={{
+                                        width: 30, height: 30, borderRadius: 8,
+                                        display: "flex", alignItems: "center", justifyContent: "center",
+                                        flexShrink: 0,
+                                        background: active ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.05)",
+                                        color: active ? "white" : color,
+                                        transition: "all 0.15s ease",
+                                    }}>
+                                        <Icon size={15} />
+                                    </div>
+
+                                    <span style={{ flex: 1, fontSize: 13.5 }}>
+                                        {t(`nav.${href.substring(1)}`, label)}
+                                    </span>
+
+                                    {/* Badges & indicators */}
+                                    {href === "/announcements" && hasUnread && (
+                                        <div style={{
+                                            width: 7, height: 7, background: "#f87171",
+                                            borderRadius: "50%",
+                                            boxShadow: "0 0 0 2px rgba(248,113,113,0.3)",
+                                        }} />
+                                    )}
+                                    {isNew && !active && (
+                                        <span style={{
+                                            fontSize: 9, fontWeight: 800,
+                                            background: "linear-gradient(135deg, #f472b6, #c084fc)",
+                                            color: "white",
+                                            padding: "2px 6px",
+                                            borderRadius: 99,
+                                            letterSpacing: "0.06em",
+                                            textTransform: "uppercase",
+                                        }}>NEW</span>
+                                    )}
+                                    {active && <ChevronRight size={13} style={{ opacity: 0.7 }} />}
+                                </Link>
+                            );
+                        })}
+
+                        {/* Offline sync */}
+                        {offlineCount > 0 && (
+                            <Link href="/offline-sync" onClick={onClose}
+                                className={`nav-item ${isActive("/offline-sync") ? "active" : ""}`}
+                                style={{ marginBottom: 2 }}>
+                                <div style={{ width: 30, height: 30, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(251,191,36,0.12)", color: "#fbbf24" }}>
+                                    <WifiOff size={15} />
+                                </div>
+                                <span style={{ flex: 1, fontSize: 13.5 }}>Pending Sync</span>
+                                <div style={{ padding: "2px 7px", fontSize: 10, fontWeight: 800, background: "rgba(251,191,36,0.2)", color: "#fbbf24", borderRadius: 99, border: "1px solid rgba(251,191,36,0.3)" }}>
+                                    {offlineCount}
+                                </div>
+                            </Link>
+                        )}
                     </>
                 )}
             </nav>
@@ -270,8 +333,22 @@ export default function Sidebar({
                         </div>
                     )}
                     <div style={{ overflow: "hidden", flex: 1 }}>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: "rgba(255,255,255,0.9)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                            {userName ?? "User"}
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <span style={{ fontSize: 13, fontWeight: 700, color: "rgba(255,255,255,0.9)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                {userName ?? "User"}
+                            </span>
+                            {isAdmin && (
+                                <span style={{
+                                    fontSize: 8.5, fontWeight: 800,
+                                    background: "rgba(99,102,241,0.25)",
+                                    color: "#a5b4fc",
+                                    border: "1px solid rgba(99,102,241,0.4)",
+                                    padding: "1px 5px",
+                                    borderRadius: 4,
+                                    letterSpacing: "0.05em",
+                                    flexShrink: 0,
+                                }}>ADMIN</span>
+                            )}
                         </div>
                         <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                             {userEmail}
