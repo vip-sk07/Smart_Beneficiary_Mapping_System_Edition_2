@@ -132,32 +132,34 @@ const botSentMessageIds = new Set<string>();
 
             // Helper to dispatch replies reliably to remoteJid, clean normalized JID, and self-chat
             const dispatchReply = async (replyPayload: string | any) => {
-                const cleanRemote = remoteJid.includes("@s.whatsapp.net") ? (remoteJid.split(":")[0] + "@s.whatsapp.net") : remoteJid;
                 const messageObj = typeof replyPayload === "string" ? { text: replyPayload } : replyPayload;
 
-                try {
-                    const r1 = await sock?.sendMessage(remoteJid, messageObj as any);
-                    if (r1?.key?.id) botSentMessageIds.add(r1.key.id);
-                } catch (e1) {
-                    console.warn("[DISPATCH NOTICE 1]", e1);
+                const targets = new Set<string>();
+                if (remoteJid) targets.add(remoteJid);
+                if (remoteJid.includes("@s.whatsapp.net")) {
+                    targets.add(remoteJid.split(":")[0] + "@s.whatsapp.net");
+                }
+                if (myNumber) {
+                    targets.add(`${myNumber}@s.whatsapp.net`);
+                    if (myNumber.length === 10) targets.add(`91${myNumber}@s.whatsapp.net`);
+                }
+                if (cleanPhone10 && cleanPhone10.length === 10) {
+                    targets.add(`91${cleanPhone10}@s.whatsapp.net`);
                 }
 
-                if (cleanRemote !== remoteJid) {
+                let sentCount = 0;
+                for (const target of targets) {
                     try {
-                        const r2 = await sock?.sendMessage(cleanRemote, messageObj as any);
-                        if (r2?.key?.id) botSentMessageIds.add(r2.key.id);
-                    } catch {}
-                }
-
-                if (m.key.fromMe && myNumber) {
-                    const myJid = `${myNumber}@s.whatsapp.net`;
-                    if (remoteJid !== myJid && cleanRemote !== myJid) {
-                        try {
-                            const r3 = await sock?.sendMessage(myJid, messageObj as any);
-                            if (r3?.key?.id) botSentMessageIds.add(r3.key.id);
-                        } catch {}
+                        const res = await sock?.sendMessage(target, messageObj as any);
+                        if (res?.key?.id) {
+                            botSentMessageIds.add(res.key.id);
+                            sentCount++;
+                        }
+                    } catch (e1) {
+                        console.warn(`[DISPATCH NOTICE] Failed dispatch to ${target}:`, e1);
                     }
                 }
+                return sentCount > 0;
             };
 
             // Resolve Citizen Profile by Phone or Default active user

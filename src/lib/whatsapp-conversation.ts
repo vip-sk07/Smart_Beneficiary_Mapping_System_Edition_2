@@ -367,11 +367,12 @@ export async function processIncomingWhatsAppMessage(
     }
 
     // ─── COMMAND 3B: OFFICIAL PDF SLIP & RECEIPT (SLIP / ACK / RECEIPT) ────
-    if (
-        upperInput === "SLIP" || upperInput === "RECEIPT" || upperInput === "ACK" ||
-        upperInput === "PDF" || upperInput.includes("DOWNLOAD SLIP") || upperInput.includes("ACK SLIP") ||
-        upperInput === "ரசீது" || upperInput === "रसीद"
-    ) {
+    const isSlipIntent =
+        upperInput.includes("SLIP") || upperInput.includes("RECEIPT") || upperInput.includes("ACK") ||
+        upperInput === "PDF" || upperInput.includes("DOWNLOAD") ||
+        upperInput === "ரசீது" || upperInput === "रसीद";
+
+    if (isSlipIntent) {
         const targetApp = userApps[0] || {
             scheme: { title: "National Centre for Communication Security (NCCS) Research Associates Scheme" },
             externalApplicationId: "SBMS-ACK-2026-938410",
@@ -402,11 +403,12 @@ export async function processIncomingWhatsAppMessage(
     }
 
     // ─── COMMAND 4: DOCUMENT VAULT AUDIT (VAULT / DOCS) ─────────────────
-    if (
-        upperInput === "VAULT" || upperInput === "DOCS" || upperInput === "DOC" || 
-        upperInput === "DOCUMENT" || upperInput === "DOCUMENTS" || 
-        upperInput === "MY DOCS" || upperInput === "CERTIFICATES" || upperInput === "சான்றிதழ்"
-    ) {
+    const isVaultIntent =
+        upperInput.includes("VAULT") || upperInput.includes("DOC") || 
+        upperInput.includes("DOCUMENT") || upperInput.includes("CERTIFICATE") || 
+        upperInput === "சான்றிதழ்" || upperInput === "दस्तावेज़";
+
+    if (isVaultIntent) {
         const docTypes = [
             { key: "aadhaar", label: "Aadhaar e-KYC Proof", weight: 25 },
             { key: "income_cert", label: "Income Certificate (Tahsildar)", weight: 25 },
