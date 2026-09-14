@@ -142,8 +142,9 @@ export async function processIncomingWhatsAppMessage(
 
     if (searchMatch.length > 0) {
         const best = searchMatch[0];
+        const link = best.applyLink || `https://smart-beneficiary-mapping-system.vercel.app/schemes/${best.id}`;
         return {
-            replyText: `🔍 *Found matching scheme for "${rawInput}":*\n\n📌 *${best.title}*\n${best.description?.slice(0, 150)}…\n\n🔗 *Official Portal:* ${best.applyLink || "https://myscheme.gov.in"}\n\n_Reply with *SHOW* to see all your pre-qualified schemes._`,
+            replyText: `🔍 *Found matching scheme for "${rawInput}":*\n\n📌 *${best.title}*\n${best.description?.slice(0, 150)}…\n\n🔗 *Official Portal:* ${link}\n\n_Reply with *SHOW* to see all your pre-qualified schemes._`,
             quickButtons: ["SHOW", "1", "2"],
             actionType: "SCHEME_DETAIL"
         };
@@ -175,7 +176,7 @@ function buildSchemeDetailResponse(scheme: any, user: any): ConversationResponse
         text += `\n`;
     }
 
-    const portalLink = scheme.applyLink || `https://www.myscheme.gov.in/search?q=${encodeURIComponent(scheme.title)}`;
+    const portalLink = scheme.applyLink || `https://smart-beneficiary-mapping-system.vercel.app/schemes/${scheme.id}`;
     text += `🔗 *Official Application Portal:*\n👉 ${portalLink}\n\n`;
     text += `━━━━━━━━━━━━━━━━━━━━\n`;
     text += `💡 _Upload missing documents to your SBMS Document Vault (https://smart-beneficiary-mapping-system.vercel.app/documents) to complete zero-touch application!_`;

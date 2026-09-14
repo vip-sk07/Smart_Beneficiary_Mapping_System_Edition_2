@@ -210,28 +210,6 @@ export default async function SchemeDetailPage({
                         </a>
                     )}
 
-                    {/* National myScheme Gateway Backup Link */}
-                    <a
-                        href={`https://www.myscheme.gov.in/search?q=${encodeURIComponent(scheme.title)}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: 6,
-                            padding: "10px 16px",
-                            borderRadius: 8,
-                            background: "#eff6ff",
-                            color: "#1d4ed8",
-                            fontSize: 13,
-                            fontWeight: 700,
-                            textDecoration: "none",
-                            border: "1.5px solid #bfdbfe",
-                        }}
-                    >
-                        <Search size={14} /> National myScheme Portal
-                    </a>
-
                     {/* Offline CSC Center Locator Link */}
                     <Link
                         href="/centers"
@@ -256,7 +234,7 @@ export default async function SchemeDetailPage({
                     <SendSchemeToWhatsApp
                         schemeTitle={scheme.title}
                         schemeBenefit={scheme.benefits?.substring(0, 100)}
-                        applyLink={scheme.applyLink || `https://www.myscheme.gov.in/search?q=${encodeURIComponent(scheme.title)}`}
+                        applyLink={scheme.applyLink || ""}
                     />
 
                     {existingApplication ? (
