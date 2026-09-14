@@ -186,7 +186,22 @@ export function checkSchemeEligibility(user: any, scheme: any): EligibilityResul
     let totalCriteria = 0;
 
     // Check if user has basic profile filled out
-    const hasBasicProfile = Boolean(user?.dob || user?.gender || user?.state || user?.income !== null || user?.occupation);
+    if (!user) {
+        return {
+            isEligible: false,
+            isIncomplete: true,
+            hasMissingDocs: false,
+            status: "unknown",
+            reason: "Complete your profile (Age, State, Gender, Income) to determine eligibility.",
+            missingFields: ["Date of Birth", "State", "Gender", "Income"],
+            missingDocs: [],
+            matchScore: 0,
+            criteriaMet: 0,
+            totalCriteria: 4
+        };
+    }
+
+    const hasBasicProfile = Boolean(user.dob || user.gender || user.state || (user.income !== null && user.income !== undefined) || user.occupation);
 
     if (!hasBasicProfile) {
         return {

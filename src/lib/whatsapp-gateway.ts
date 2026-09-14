@@ -280,7 +280,7 @@ const botSentMessageIds = new Set<string>();
                     console.log(`[BHASHINI AI] 🗣️ Heard: "${transcriptionResult.transcript}" (${transcriptionResult.detectedLanguage})`);
 
                     const heardHeader = `🎙️ *Bhashini Indic Voice Assistant (${transcriptionResult.detectedLanguage.toUpperCase()}):*\n🗣️ _"${transcriptionResult.transcript}"_\n━━━━━━━━━━━━━━━━━━━━\n\n`;
-                    const conversationReply = await processIncomingWhatsAppMessage(transcriptionResult.transcript, citizenId);
+                    const conversationReply = await processIncomingWhatsAppMessage(transcriptionResult.transcript, citizenId, cleanPhone10);
 
                     await dispatchReply(`${heardHeader}${conversationReply.replyText}`);
                     continue;
@@ -454,7 +454,7 @@ const botSentMessageIds = new Set<string>();
 
             // ─── 3B. STANDARD CONVERSATIONAL ENGINE DISPATCH ──────────────────
             try {
-                const reply = await processIncomingWhatsAppMessage(text, citizenId);
+                const reply = await processIncomingWhatsAppMessage(text, citizenId, cleanPhone10);
                 if (reply && reply.replyText) {
                     addLog(`💬 Generated conversation reply for "${text}". Length: ${reply.replyText.length}`);
                     await dispatchReply(reply.replyText);

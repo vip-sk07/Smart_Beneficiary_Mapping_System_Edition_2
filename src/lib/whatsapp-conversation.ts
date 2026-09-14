@@ -35,14 +35,19 @@ async function queryWithTimeout<T>(queryFn: () => Promise<T>, timeoutMs = 600): 
 
 export async function processIncomingWhatsAppMessage(
     userMessage: string,
-    userId?: string
+    userId?: string,
+    phone?: string
 ): Promise<ConversationResponse> {
     const rawInput = userMessage.trim();
     const upperInput = rawInput.toUpperCase();
     const baseUrl = process.env.NEXTAUTH_URL || "https://smart-beneficiary-mapping-system.vercel.app";
 
+    const cleanPhone10 = phone ? phone.replace(/\D/g, "").slice(-10) : "";
+
     // 1. Fetch citizen profile, documents, applications, and grievances with DB-safe fallback
     let user: any = null;
+    let isExplicitNewCitizen = false;
+
     try {
         if (userId) {
             user = await queryWithTimeout(() => prisma.user.findUnique({
@@ -61,47 +66,32 @@ export async function processIncomingWhatsAppMessage(
             }));
         }
 
-        // Prioritize finding user who actually has submitted applications
-        if (!user) {
+        if (!user && cleanPhone10.length === 10) {
+            user = await queryWithTimeout(() => prisma.user.findFirst({
+                where: { phone: { contains: cleanPhone10 } },
+                include: {
+                    documents: true,
+                    applications: {
+                        include: { scheme: { include: { category: true } } },
+                        orderBy: { submittedAt: "desc" }
+                    },
+                    grievances: {
+                        orderBy: { createdAt: "desc" },
+                        take: 5
+                    }
+                }
+            }));
+
+            // If a specific 10-digit phone was provided from an external user and not found in DB
+            if (!user && cleanPhone10 !== "9384102655") {
+                isExplicitNewCitizen = true;
+            }
+        }
+
+        // If no user found and this is not a new external citizen (e.g. self-chat or general test)
+        if (!user && !isExplicitNewCitizen) {
             user = await queryWithTimeout(() => prisma.user.findFirst({
                 where: { applications: { some: {} } },
-                include: {
-                    documents: true,
-                    applications: {
-                        include: { scheme: { include: { category: true } } },
-                        orderBy: { submittedAt: "desc" }
-                    },
-                    grievances: {
-                        orderBy: { createdAt: "desc" },
-                        take: 5
-                    }
-                },
-                orderBy: { updatedAt: "desc" }
-            }));
-        }
-
-        // Then user with uploaded documents
-        if (!user) {
-            user = await queryWithTimeout(() => prisma.user.findFirst({
-                where: { documents: { some: {} } },
-                include: {
-                    documents: true,
-                    applications: {
-                        include: { scheme: { include: { category: true } } },
-                        orderBy: { submittedAt: "desc" }
-                    },
-                    grievances: {
-                        orderBy: { createdAt: "desc" },
-                        take: 5
-                    }
-                },
-                orderBy: { updatedAt: "desc" }
-            }));
-        }
-
-        // Then most recent user
-        if (!user) {
-            user = await queryWithTimeout(() => prisma.user.findFirst({
                 include: {
                     documents: true,
                     applications: {
@@ -120,7 +110,7 @@ export async function processIncomingWhatsAppMessage(
         console.warn("[WHATSAPP CONVERSATION] DB User lookup notice:", dbErr);
     }
 
-    if (!user) {
+    if (!user && !isExplicitNewCitizen) {
         user = {
             id: "citizen-user",
             name: "Karan Raj T",
@@ -167,8 +157,8 @@ export async function processIncomingWhatsAppMessage(
         } catch {}
     }
 
-    // If still empty, supply the authentic acknowledgment tracking slip
-    if (!userApps || userApps.length === 0) {
+    // If still empty and not an explicit new citizen, supply the authentic acknowledgment tracking slip
+    if ((!userApps || userApps.length === 0) && !isExplicitNewCitizen) {
         userApps = [
             {
                 id: "app-default",
@@ -323,6 +313,23 @@ export async function processIncomingWhatsAppMessage(
         upperInput === "நிலை" || upperInput === "स्थिति";
 
     if (isStatusIntent) {
+        if (!userApps || userApps.length === 0) {
+            let emptyStatus = `📋 *YOUR SBMS APPLICATION DASHBOARD:*\n`;
+            emptyStatus += `━━━━━━━━━━━━━━━━━━━━\n`;
+            emptyStatus += `🙏 *Namaste ${userName}!*\n\n`;
+            emptyStatus += `You currently have *0 active applications* on file.\n\n`;
+            emptyStatus += `✨ *Ready to explore benefits?*\n`;
+            emptyStatus += `• Reply *SHOW* to discover top welfare schemes you qualify for.\n`;
+            emptyStatus += `• Visit the online portal to apply in 1 click:\n`;
+            emptyStatus += `👉 ${baseUrl}/eligibility\n`;
+
+            return {
+                replyText: emptyStatus,
+                quickButtons: ["SHOW", "VAULT", "HELP"],
+                actionType: "STATUS_TRACKING"
+            };
+        }
+
         let statusText = `📋 *YOUR SBMS APPLICATION DASHBOARD (${userApps.length}):*\n━━━━━━━━━━━━━━━━━━━━\n`;
 
         userApps.slice(0, 5).forEach((app: any, idx: number) => {
