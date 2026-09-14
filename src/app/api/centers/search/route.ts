@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { searchPanIndia } from "@/lib/pan-india-centers";
+import { searchPanIndia, reverseGeocodeLocation } from "@/lib/pan-india-centers";
 
 export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
@@ -12,23 +12,14 @@ export async function GET(req: Request) {
     let cleanQuery = query.trim();
 
     try {
+        let detectedState: string | undefined = undefined;
+
         // If GPS coordinates provided without specific query, reverse-geocode place name
         if ((cleanQuery.toLowerCase() === "nearby" || cleanQuery === "") && hasLat && hasLng) {
             try {
-                const revRes = await fetch(
-                    `https://nominatim.openstreetmap.org/reverse?lat=${userLat}&lon=${userLng}&format=json&addressdetails=1`,
-                    {
-                        headers: {
-                            "User-Agent": "SBMS-National-Platform/2.0 (contact@sbms.gov.in)",
-                            "Accept-Language": "en-IN,en;q=0.9"
-                        }
-                    }
-                );
-                if (revRes.ok) {
-                    const revData = await revRes.json();
-                    const addr = revData.address || {};
-                    cleanQuery = addr.suburb || addr.town || addr.village || addr.city || addr.county || addr.state_district || "Sattur";
-                }
+                const geo = await reverseGeocodeLocation(userLat, userLng);
+                cleanQuery = geo.pincode || geo.taluk || geo.district || "Sattur";
+                detectedState = geo.state;
             } catch (revErr) {
                 console.error("Reverse Geocode Error:", revErr);
             }
@@ -39,7 +30,7 @@ export async function GET(req: Request) {
         }
 
         // Search the Master Pan-India Dataset (154,000+ official centers)
-        const results = await searchPanIndia(cleanQuery, userLat, userLng);
+        const results = await searchPanIndia(cleanQuery, userLat, userLng, detectedState);
 
         return NextResponse.json({
             success: true,

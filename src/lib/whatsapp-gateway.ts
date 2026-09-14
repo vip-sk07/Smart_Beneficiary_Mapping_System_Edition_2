@@ -338,29 +338,26 @@ function extractMessageText(msg: any): string {
                 if (lat && lng) {
                     console.log(`[WHATSAPP GPS] 📍 Received Location: ${lat}, ${lng} from ${remoteJid}`);
                     try {
-                        let district = "Tamil Nadu";
-                        let state = "Tamil Nadu";
-                        try {
-                            const geoRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`, {
-                                headers: { "User-Agent": "SBMS-National-Platform/2.0" }
-                            });
-                            if (geoRes.ok) {
-                                const geoData = await geoRes.json();
-                                district = geoData.address?.state_district || geoData.address?.county || geoData.address?.city || "Local Region";
-                                state = geoData.address?.state || "Tamil Nadu";
-                            }
-                        } catch {}
+                        const { reverseGeocodeLocation, searchPanIndia } = await import("@/lib/pan-india-centers");
+                        const geo = await reverseGeocodeLocation(lat, lng);
+                        console.log(`[WHATSAPP GPS] 🗺️ Geocoded to: ${geo.displayName} (State: ${geo.state}, District: ${geo.district}, Taluk: ${geo.taluk}, Pin: ${geo.pincode})`);
 
-                        const { searchPanIndia } = await import("@/lib/pan-india-centers");
-                        const searchRes = await searchPanIndia(district, lat, lng);
+                        // Search for the nearest centers using pincode / taluk / district
+                        const queryKey = geo.pincode || geo.taluk || geo.district || geo.state;
+                        const searchRes = await searchPanIndia(queryKey, lat, lng, geo.state);
                         const topCenters = searchRes.centers.slice(0, 3);
 
-                        let locReply = `📍 *LOCATION DETECTED: ${district}, ${state}*\n`;
+                        const detectedHeader = [geo.taluk, geo.district, geo.state]
+                            .filter(Boolean)
+                            .filter((item, pos, self) => self.indexOf(item) === pos)
+                            .join(", ");
+
+                        let locReply = `📍 *LOCATION DETECTED: ${detectedHeader}*\n`;
                         locReply += `━━━━━━━━━━━━━━━━━━━━\n\n`;
                         locReply += `🏛️ *Nearest CSC e-Seva & Aadhaar Kendras (${topCenters.length}):*\n\n`;
 
                         topCenters.forEach((c, idx) => {
-                            const dist = c.distanceKm ? ` (${c.distanceKm} km away)` : "";
+                            const dist = c.distanceKm !== undefined ? ` (${c.distanceKm} km away)` : "";
                             const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${c.lat},${c.lng}`;
                             locReply += `${idx + 1}. 🏢 *${c.name}*${dist}\n`;
                             locReply += `   📍 ${c.address}\n`;
@@ -369,7 +366,7 @@ function extractMessageText(msg: any): string {
                         });
 
                         locReply += `━━━━━━━━━━━━━━━━━━━━\n`;
-                        locReply += `💬 _Reply with *SHOW* to discover schemes eligible for ${state} citizens._`;
+                        locReply += `💬 _Reply with *SHOW* to discover schemes eligible for ${geo.state} citizens._`;
 
                         await dispatchReply(locReply);
                         continue;
