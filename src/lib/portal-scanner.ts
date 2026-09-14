@@ -10,6 +10,8 @@
  *  5. Recommended execution mode (ZERO_TOUCH | ASSISTED_COPILOT | PDF_DOSSIER)
  */
 
+import { getSchemeDocumentRequirements } from "@/lib/eligibility";
+
 export type PortalMode = "ZERO_TOUCH" | "ASSISTED_COPILOT" | "PDF_DOSSIER";
 export type CaptchaType = "none" | "math_captcha" | "image_alphanumeric" | "recaptcha" | "turnstile" | "hcaptcha";
 
@@ -193,33 +195,15 @@ export async function scanSchemePortal(
         }
     }
 
-    // 3. Document Vault Matching
-    const docText = (scheme.documents || "").toLowerCase() + " " + (scheme.description || "").toLowerCase() + " " + (scheme.eligibility || "").toLowerCase();
-    const standardDocs = [
-        { type: "aadhaar", label: "Aadhaar Card (e-KYC)", needed: true }, // Aadhaar is universal for government DBT & verification
-        { type: "bank_passbook", label: "Bank Passbook / Cancelled Cheque", needed: docText.includes("bank") || docText.includes("passbook") || docText.includes("account") || docText.includes("cheque") || docText.includes("ifsc") },
-        { type: "photo", label: "Passport Size Photograph", needed: docText.includes("photo") || docText.includes("photograph") },
-        { type: "signature", label: "Specimen Signature / Thumb Impression", needed: docText.includes("signature") || docText.includes("sign") || docText.includes("thumb") },
-        { type: "caste_cert", label: "Caste / Community / EWS Certificate", needed: docText.includes("caste") || docText.includes("community") || docText.includes("category") || docText.includes("sc/st") || docText.includes("obc") || docText.includes("ews") },
-        { type: "birth_cert", label: "Birth Certificate / Age Proof", needed: docText.includes("birth") || docText.includes("age proof") || docText.includes("dob") || docText.includes("slc") },
-        { type: "domicile", label: "Domicile / Nativity Certificate", needed: docText.includes("domicile") || docText.includes("residence") || docText.includes("nativity") || docText.includes("residential") },
-        { type: "income_cert", label: "Income Certificate / Salary Slip", needed: docText.includes("income") || docText.includes("salary") || docText.includes("itr") },
-        { type: "ration_card", label: "Ration Card (PHH / AAY / BPL)", needed: docText.includes("ration") || docText.includes("bpl") || docText.includes("antyodaya") || docText.includes("aay") },
-        { type: "education_cert", label: "Educational Marksheet / Degree", needed: docText.includes("marksheet") || docText.includes("degree") || docText.includes("bonafide") || docText.includes("student") || docText.includes("certificate of education") },
-        { type: "disability_cert", label: "Disability Certificate / UDID Card", needed: docText.includes("disability") || docText.includes("handicap") || docText.includes("pwd") || docText.includes("udid") },
-        { type: "land_record", label: "Land Records (Patta / Chitta / 7-12)", needed: docText.includes("land") || docText.includes("patta") || docText.includes("khasra") || docText.includes("chitta") || docText.includes("7/12") || docText.includes("ror") },
-        { type: "driving_license", label: "Driving License / Vehicle RC", needed: docText.includes("driving license") || docText.includes("license") || docText.includes("rc book") },
-        { type: "death_cert", label: "Death Certificate / Legal Heir Proof", needed: docText.includes("death") || docText.includes("legal heir") },
-        { type: "job_card", label: "MGNREGA Job Card / Shramik Card", needed: docText.includes("job card") || docText.includes("mgnrega") || docText.includes("shramik") || docText.includes("e-shram") },
-    ];
-
+    // 3. Document Vault Matching (Unified across SBMS engines)
+    const schemeReqs = getSchemeDocumentRequirements(scheme);
     const userDocs = user.documents || [];
-    const requiredDocuments = standardDocs
+    const requiredDocuments = schemeReqs
         .filter(d => d.needed)
         .map(d => {
-            const vaultMatch = userDocs.find(ud => ud.type === d.type);
+            const vaultMatch = userDocs.find(ud => ud.type === d.key);
             return {
-                type: d.type,
+                type: d.key,
                 label: d.label,
                 availableInVault: !!vaultMatch,
                 documentId: vaultMatch?.id,

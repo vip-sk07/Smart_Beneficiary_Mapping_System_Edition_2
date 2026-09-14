@@ -576,8 +576,8 @@ export default function AutonomousAgentModal({
                                             style={{
                                                 fontSize: 11,
                                                 fontWeight: 800,
-                                                background: "#dcfce7",
-                                                color: "#15803d",
+                                                background: scanData.vaultReadinessScore >= 80 ? "#dcfce7" : scanData.vaultReadinessScore >= 50 ? "#fef3c7" : "#fee2e2",
+                                                color: scanData.vaultReadinessScore >= 80 ? "#15803d" : scanData.vaultReadinessScore >= 50 ? "#b45309" : "#b91c1c",
                                                 padding: "1px 6px",
                                                 borderRadius: 4,
                                             }}
@@ -586,17 +586,22 @@ export default function AutonomousAgentModal({
                                         </span>
                                     </div>
                                     <div style={{ display: "flex", flexDirection: "column", gap: 5, fontSize: 11.5 }}>
-                                        {scanData.requiredDocuments.slice(0, 3).map((doc, idx) => (
+                                        {scanData.requiredDocuments.slice(0, 4).map((doc, idx) => (
                                             <div
                                                 key={idx}
                                                 style={{
                                                     display: "flex",
                                                     alignItems: "center",
                                                     justifyContent: "space-between",
+                                                    gap: 8,
                                                 }}
                                             >
-                                                <span style={{ color: "#475569" }}>{doc.label}</span>
-                                                <span style={{ color: "#166534", fontWeight: 600 }}>✓ In Vault</span>
+                                                <span style={{ color: "#475569", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{doc.label}</span>
+                                                {doc.availableInVault ? (
+                                                    <span style={{ color: "#166534", fontWeight: 600, flexShrink: 0 }}>✓ In Vault</span>
+                                                ) : (
+                                                    <span style={{ color: "#dc2626", fontWeight: 600, flexShrink: 0 }}>✗ Missing</span>
+                                                )}
                                             </div>
                                         ))}
                                     </div>
