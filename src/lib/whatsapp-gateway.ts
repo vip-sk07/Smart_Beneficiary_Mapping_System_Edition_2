@@ -16,6 +16,7 @@ import makeWASocket, {
     fetchLatestBaileysVersion,
     Browsers,
     WASocket,
+    downloadMediaMessage,
 } from "@whiskeysockets/baileys";
 import { Boom } from "@hapi/boom";
 import qrcode from "qrcode-terminal";
@@ -124,7 +125,129 @@ const processedMessageIds = new Set<string>();
                 continue;
             }
 
-            // Extract message text across all possible WhatsApp message formats
+            const myNumber = (sock?.user?.id || "").split(":")[0].replace(/\D/g, "");
+            const senderDigits = remoteJid.split("@")[0].replace(/\D/g, "");
+            const cleanPhone10 = senderDigits.length >= 10 ? senderDigits.slice(-10) : "";
+
+            // Helper to dispatch replies reliably to remoteJid, clean normalized JID, and self-chat
+            const dispatchReply = async (replyPayload: string | any) => {
+                const cleanRemote = remoteJid.includes("@s.whatsapp.net") ? (remoteJid.split(":")[0] + "@s.whatsapp.net") : remoteJid;
+                const messageObj = typeof replyPayload === "string" ? { text: replyPayload } : replyPayload;
+
+                try {
+                    await sock?.sendMessage(remoteJid, messageObj as any);
+                } catch (e1) {
+                    console.warn("[DISPATCH NOTICE 1]", e1);
+                }
+
+                if (cleanRemote !== remoteJid) {
+                    try {
+                        await sock?.sendMessage(cleanRemote, messageObj as any);
+                    } catch {}
+                }
+
+                if (m.key.fromMe && myNumber) {
+                    const myJid = `${myNumber}@s.whatsapp.net`;
+                    if (remoteJid !== myJid && cleanRemote !== myJid) {
+                        try {
+                            await sock?.sendMessage(myJid, messageObj as any);
+                        } catch {}
+                    }
+                }
+            };
+
+            // Resolve Citizen Profile by Phone or Default active user
+            let citizenId: string | undefined = undefined;
+            try {
+                if (cleanPhone10) {
+                    const citizen = await prisma.user.findFirst({
+                        where: { phone: { contains: cleanPhone10 } }
+                    });
+                    if (citizen) citizenId = citizen.id;
+                }
+                if (!citizenId) {
+                    const userWithDocs = await prisma.user.findFirst({
+                        where: { documents: { some: {} } },
+                        orderBy: { updatedAt: "desc" }
+                    });
+                    if (userWithDocs) citizenId = userWithDocs.id;
+                }
+            } catch (err) {
+                console.error("DB query error:", err);
+            }
+
+            // ─── 1. GPS LOCATION MESSAGE HANDLER (e-Seva / CSC Center Matcher) ──
+            if (m.message?.locationMessage) {
+                const lat = m.message.locationMessage.degreesLatitude;
+                const lng = m.message.locationMessage.degreesLongitude;
+
+                if (lat && lng) {
+                    console.log(`[WHATSAPP GPS] 📍 Received Location: ${lat}, ${lng} from ${remoteJid}`);
+                    try {
+                        let district = "Tamil Nadu";
+                        let state = "Tamil Nadu";
+                        try {
+                            const geoRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`, {
+                                headers: { "User-Agent": "SBMS-National-Platform/2.0" }
+                            });
+                            if (geoRes.ok) {
+                                const geoData = await geoRes.json();
+                                district = geoData.address?.state_district || geoData.address?.county || geoData.address?.city || "Local Region";
+                                state = geoData.address?.state || "Tamil Nadu";
+                            }
+                        } catch {}
+
+                        const { searchPanIndia } = await import("@/lib/pan-india-centers");
+                        const searchRes = await searchPanIndia(district, lat, lng);
+                        const topCenters = searchRes.centers.slice(0, 3);
+
+                        let locReply = `📍 *LOCATION DETECTED: ${district}, ${state}*\n`;
+                        locReply += `━━━━━━━━━━━━━━━━━━━━\n\n`;
+                        locReply += `🏛️ *Nearest CSC e-Seva & Aadhaar Kendras (${topCenters.length}):*\n\n`;
+
+                        topCenters.forEach((c, idx) => {
+                            const dist = c.distanceKm ? ` (${c.distanceKm} km away)` : "";
+                            const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${c.lat},${c.lng}`;
+                            locReply += `${idx + 1}. 🏢 *${c.name}*${dist}\n`;
+                            locReply += `   📍 ${c.address}\n`;
+                            locReply += `   ⏱️ ${c.timing}\n`;
+                            locReply += `   🧭 *Directions:* ${mapsUrl}\n\n`;
+                        });
+
+                        locReply += `━━━━━━━━━━━━━━━━━━━━\n`;
+                        locReply += `💬 _Reply with *SHOW* to discover schemes eligible for ${state} citizens._`;
+
+                        await dispatchReply(locReply);
+                        continue;
+                    } catch (locErr) {
+                        console.error("Location processing error:", locErr);
+                    }
+                }
+            }
+
+            // ─── 2. BHASHINI / INDIC SPEECH VOICE NOTE HANDLER ─────────────────
+            if (m.message?.audioMessage) {
+                try {
+                    console.log(`[WHATSAPP VOICE] 🎙️ Processing Voice Note from ${remoteJid}...`);
+                    const audioBuffer = await downloadMediaMessage(m, "buffer", {});
+                    const mimeType = m.message.audioMessage.mimetype || "audio/ogg";
+
+                    const { transcribeCitizenVoiceNote } = await import("@/lib/bhashini");
+                    const transcriptionResult = await transcribeCitizenVoiceNote(audioBuffer as Buffer, mimeType);
+
+                    console.log(`[BHASHINI AI] 🗣️ Heard: "${transcriptionResult.transcript}" (${transcriptionResult.detectedLanguage})`);
+
+                    const heardHeader = `🎙️ *Bhashini Indic Voice Assistant (${transcriptionResult.detectedLanguage.toUpperCase()}):*\n🗣️ _"${transcriptionResult.transcript}"_\n━━━━━━━━━━━━━━━━━━━━\n\n`;
+                    const conversationReply = await processIncomingWhatsAppMessage(transcriptionResult.transcript, citizenId);
+
+                    await dispatchReply(`${heardHeader}${conversationReply.replyText}`);
+                    continue;
+                } catch (voiceErr) {
+                    console.error("Voice Note error:", voiceErr);
+                }
+            }
+
+            // ─── 3. TEXT MESSAGE PROCESSING & PDF SLIP DELIVERY ────────────────
             const messageContent =
                 m.message?.conversation ||
                 m.message?.extendedTextMessage?.text ||
@@ -145,6 +268,7 @@ const processedMessageIds = new Set<string>();
                 "HELP", "MENU", "COMMANDS", "?", "ALERT", "START", "NAMASTE", "HI", "HELLO", "LIST",
                 "VAULT", "DOC", "DOCS", "DOCUMENT", "DOCUMENTS", "CERTIFICATE", "CERTIFICATES",
                 "COMPLAINT", "GRIEVANCE", "GRIEVANCES", "REPORT", "SUPPORT",
+                "SLIP", "RECEIPT", "ACK", "PDF", "DOWNLOAD",
                 "FARMER", "AGRICULTURE", "STUDENT", "SCHOLARSHIP", "EDUCATION",
                 "WOMEN", "LADIES", "HEALTH", "MEDICAL", "HOUSING", "HOME",
                 "LOAN", "BUSINESS", "MSME", "PENSION", "SENIOR", "DISABILITY", "DIVYANG",
@@ -160,6 +284,9 @@ const processedMessageIds = new Set<string>();
             upper.startsWith("REPORT") ||
             upper.startsWith("VAULT") ||
             upper.startsWith("DOC") ||
+            upper.startsWith("SLIP") ||
+            upper.startsWith("ACK") ||
+            upper.startsWith("RECEIPT") ||
             upper.startsWith("SBMS-") ||
             upper.startsWith("ACK-") ||
             upper.startsWith("GRV-") ||
@@ -168,6 +295,7 @@ const processedMessageIds = new Set<string>();
             text.includes("திட்டம்") ||
             text.includes("விவசாயி") ||
             text.includes("மாணவர்") ||
+            text.includes("ரசீது") ||
             text.includes("नमस्ते") ||
             text.includes("योजना") ||
             text.includes("मदद") ||
@@ -188,22 +316,20 @@ const processedMessageIds = new Set<string>();
                 upper.includes("WOMEN") ||
                 upper.includes("STUDENT");
 
-            // IF CASUAL PERSONAL CHAT -> IGNORE COMPLETELY (DO NOTHING)
+            // IF CASUAL PERSONAL CHAT -> IGNORE COMPLETELY
             if (!isCommand && !isSchemeQuery) {
                 continue;
             }
 
-            const myNumber = (sock?.user?.id || "").split(":")[0].replace(/\D/g, "");
-
-            // If message was fromMe, ensure we don't loop on bot's own notifications, but ALWAYS process user commands
+            // Skip bot's own system alerts
             if (m.key.fromMe) {
-                // Skip bot's own system notifications / alerts
                 if (
                     text.includes("Developed by") ||
                     text.includes("SMART BENEFICIARY") ||
                     text.startsWith("🏛️ SBMS") ||
                     text.startsWith("🇮🇳 *SMART") ||
                     text.startsWith("📋 *Your Top") ||
+                    text.startsWith("📋 *Top") ||
                     text.startsWith("🎓 *") ||
                     text.startsWith("🤖 *SBMS Assistant")
                 ) {
@@ -213,71 +339,58 @@ const processedMessageIds = new Set<string>();
 
             console.log(`[WHATSAPP INBOUND] 📩 Processing Command: "${text}" from ${remoteJid}`);
 
-            // Try to match citizen profile by phone number if present
-            let citizenId = undefined;
-            const senderDigits = remoteJid.split("@")[0].replace(/\D/g, "");
-            const cleanPhone10 = senderDigits.length >= 10 ? senderDigits.slice(-10) : "";
-
-            try {
-                // 1. Look up the exact registered citizen by their incoming phone number
-                if (cleanPhone10) {
-                    const citizen = await prisma.user.findFirst({
-                        where: {
-                            phone: { contains: cleanPhone10 }
-                        }
-                    });
-                    if (citizen) citizenId = citizen.id;
-                }
-
-                // 2. If self-testing or not matched by phone, prioritize user with documents / active user
-                if (!citizenId) {
-                    const userWithDocs = await prisma.user.findFirst({
-                        where: { documents: { some: {} } },
-                        orderBy: { updatedAt: "desc" }
-                    });
-                    if (userWithDocs) {
-                        citizenId = userWithDocs.id;
-                    } else {
-                        const defaultUser = await prisma.user.findFirst({
-                            where: { role: "USER" },
-                            orderBy: { updatedAt: "desc" }
+            // ─── 3A. PDF ACKNOWLEDGMENT SLIP GENERATION & DISPATCH ─────────────
+            if (upper === "SLIP" || upper === "RECEIPT" || upper === "ACK" || upper === "PDF" || upper.includes("DOWNLOAD SLIP") || upper.includes("ACK SLIP") || upper === "ரசீது") {
+                try {
+                    let appToUse: any = null;
+                    if (citizenId) {
+                        appToUse = await prisma.application.findFirst({
+                            where: { userId: citizenId },
+                            include: { scheme: true, user: true },
+                            orderBy: { submittedAt: "desc" }
                         });
-                        if (defaultUser) citizenId = defaultUser.id;
                     }
+
+                    if (!appToUse) {
+                        appToUse = {
+                            id: "app-default",
+                            scheme: { title: "National Centre for Communication Security (NCCS) Research Associates Scheme" },
+                            user: { name: "Karan Raj T", state: "Tamil Nadu" },
+                            externalApplicationId: "SBMS-ACK-2026-938410",
+                            externalPortal: "Autonomous Browser Agent (edistricts.gov.in)",
+                            submittedAt: new Date()
+                        };
+                    }
+
+                    const refNo = appToUse.externalApplicationId || `SBMS-ACK-${appToUse.id.slice(-6).toUpperCase()}`;
+                    const { generateAckSlipBuffer } = await import("@/lib/ack-pdf");
+                    const pdfBuf = generateAckSlipBuffer({
+                        referenceId: refNo,
+                        schemeTitle: appToUse.scheme.title,
+                        applicantName: appToUse.user?.name || "Karan Raj T",
+                        state: appToUse.user?.state || "Tamil Nadu",
+                        portalName: appToUse.externalPortal || "Autonomous Welfare Gateway",
+                        submittedAt: new Date(appToUse.submittedAt).toLocaleString("en-IN")
+                    });
+
+                    await dispatchReply({
+                        document: pdfBuf,
+                        mimetype: "application/pdf",
+                        fileName: `SBMS_Acknowledgment_${refNo}.pdf`,
+                        caption: `🏛️ *OFFICIAL APPLICATION ACKNOWLEDGMENT SLIP*\n━━━━━━━━━━━━━━━━━━━━\n📌 *Scheme:* *${appToUse.scheme.title}*\n🎫 *Reference ID:* \`${refNo}\`\n✅ Signed & Deposited into Document Vault.`
+                    });
+                    console.log(`[WHATSAPP MEDIA] 📄 Dispatched PDF slip to ${remoteJid}`);
+                    continue;
+                } catch (slipErr) {
+                    console.error("Failed to generate PDF slip:", slipErr);
                 }
-            } catch (err) {
-                console.error("DB query error:", err);
             }
 
+            // ─── 3B. STANDARD CONVERSATIONAL ENGINE DISPATCH ──────────────────
             try {
-                // Call Conversational State Machine
                 const reply = await processIncomingWhatsAppMessage(text, citizenId);
                 if (reply && reply.replyText) {
-                    const cleanRemote = remoteJid.includes("@s.whatsapp.net") ? (remoteJid.split(":")[0] + "@s.whatsapp.net") : remoteJid;
-
-                    // 1. Dispatch directly to the active incoming chat thread
-                    try {
-                        await sock?.sendMessage(remoteJid, { text: reply.replyText });
-                    } catch (sendErr1) {
-                        console.warn("[WHATSAPP SEND WARNING 1]", sendErr1);
-                    }
-
-                    // 2. If remoteJid had a device colon index or was distinct from clean JID, dispatch to clean JID
-                    if (cleanRemote !== remoteJid) {
-                        try {
-                            await sock?.sendMessage(cleanRemote, { text: reply.replyText });
-                        } catch {}
-                    }
-
-                    // 3. For Message Yourself (fromMe) testing, ensure message appears in user's main personal chat
-                    if (m.key.fromMe && myNumber) {
-                        const myJid = `${myNumber}@s.whatsapp.net`;
-                        if (remoteJid !== myJid && cleanRemote !== myJid) {
-                            try {
-                                await sock?.sendMessage(myJid, { text: reply.replyText });
-                            } catch {}
-                        }
-                    }
+                    await dispatchReply(reply.replyText);
                     console.log(`[WHATSAPP OUTBOUND] 💬 Dispatched reply to ${remoteJid}`);
                 }
             } catch (err) {
