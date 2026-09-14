@@ -548,8 +548,12 @@ export async function processIncomingWhatsAppMessage(
     if (
         upperInput === "SHOW" || upperInput === "LIST" || upperInput === "SCHEMES" || 
         upperInput.includes("SHOW MY SCHEMES") || upperInput.includes("MY SCHEMES") || 
-        upperInput.includes("SHOW SCHEMES") || upperInput === "திட்டம்" || upperInput === "திட்டங்கள்" ||
-        upperInput === "योजना"
+        upperInput.includes("SHOW SCHEMES") || upperInput.includes("ELIGIBLE SCHEMES") ||
+        upperInput.includes("WELFARE SCHEMES") || upperInput.includes("WHAT SCHEMES") ||
+        upperInput.includes("AVAILABLE SCHEMES") || upperInput.includes("RECOMMEND") ||
+        upperInput.includes("திட்டம்") || upperInput.includes("திட்டங்கள்") ||
+        upperInput.includes("திட்டங்களை") || upperInput.includes("காட்டு") ||
+        upperInput === "योजना" || upperInput.includes("सरकारी योजना")
     ) {
         const totalCount = fullyEligible.length > 0 ? fullyEligible.length : combinedList.length;
         let menuText = `📋 *Top Eligible Welfare Schemes for ${userName} (${topFive.length} of ${totalCount}):*\n━━━━━━━━━━━━━━━━━━━━\n`;
