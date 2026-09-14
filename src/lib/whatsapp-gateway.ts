@@ -221,8 +221,20 @@ function extractMessageText(msg: any): string {
             }
 
             const myNumber = (sock?.user?.id || "").split(":")[0].replace(/\D/g, "");
-            const senderDigits = remoteJid.split("@")[0].replace(/\D/g, "");
-            const cleanPhone10 = senderDigits.length >= 10 ? senderDigits.slice(-10) : "";
+
+            // Accurately determine phone number (handling LID, self-chat, and multi-device)
+            let cleanPhone10 = "";
+            if (fromMe && myNumber) {
+                cleanPhone10 = myNumber.slice(-10);
+            } else if (remoteJid && remoteJid.endsWith("@s.whatsapp.net")) {
+                const digits = remoteJid.split("@")[0].replace(/\D/g, "");
+                cleanPhone10 = digits.length >= 10 ? digits.slice(-10) : "";
+            } else if (m.key.participant && m.key.participant.endsWith("@s.whatsapp.net")) {
+                const digits = m.key.participant.split("@")[0].replace(/\D/g, "");
+                cleanPhone10 = digits.length >= 10 ? digits.slice(-10) : "";
+            } else if (fromMe || !remoteJid.endsWith("@s.whatsapp.net")) {
+                cleanPhone10 = myNumber ? myNumber.slice(-10) : "9384102655";
+            }
 
             // Helper to dispatch replies reliably to standard Phone JIDs (@s.whatsapp.net)
             const dispatchReply = async (replyPayload: string | any) => {
@@ -283,6 +295,24 @@ function extractMessageText(msg: any): string {
 
             // Resolve Citizen Profile by Phone if available
             let citizenId: string | undefined = undefined;
+            if (cleanPhone10 && cleanPhone10.length === 10) {
+                try {
+                    const u = await prisma.user.findFirst({
+                        where: { phone: { contains: cleanPhone10 } },
+                        select: { id: true }
+                    });
+                    if (u) citizenId = u.id;
+                } catch {}
+            }
+            if (!citizenId && (fromMe || cleanPhone10 === "9384102655")) {
+                try {
+                    const u = await prisma.user.findFirst({
+                        where: { phone: { contains: "9384102655" } },
+                        select: { id: true }
+                    });
+                    if (u) citizenId = u.id;
+                } catch {}
+            }
 
             // Recursively unwrap any nested or device-sent WhatsApp messages
             const actualMsg = recursivelyUnwrapMessage(m.message);
@@ -482,14 +512,24 @@ function extractMessageText(msg: any): string {
                         } catch {}
                     }
 
+                    if (!appToUse && cleanPhone10) {
+                        try {
+                            appToUse = await prisma.application.findFirst({
+                                where: { user: { phone: { contains: cleanPhone10 } } },
+                                include: { scheme: true, user: true },
+                                orderBy: { submittedAt: "desc" }
+                            });
+                        } catch {}
+                    }
+
                     if (!appToUse) {
                         appToUse = {
-                            id: "app-default",
-                            scheme: { title: "National Centre for Communication Security (NCCS) Research Associates Scheme" },
+                            id: "cmu0te8ya000004l78pxfz4h2",
+                            scheme: { title: "National Solar Science Fellowship Programme" },
                             user: { name: "Karan Raj T", state: "Tamil Nadu" },
-                            externalApplicationId: "SBMS-ACK-2026-938410",
-                            externalPortal: "Autonomous Browser Agent (edistricts.gov.in)",
-                            submittedAt: new Date()
+                            externalApplicationId: "SBMS-APP-2026-583096",
+                            externalPortal: "Autonomous Welfare Gateway (edistricts.gov.in)",
+                            submittedAt: new Date("2026-09-14")
                         };
                     }
 
@@ -584,7 +624,7 @@ function startIPCServer() {
                 res.end();
                 return;
             }
-            res.end(JSON.stringify({ status: "ok", gateway: connectionStatus, service: "SBMS WhatsApp Gateway", build: "v2.2-unwrap-fix", timestamp: new Date().toISOString() }));
+            res.end(JSON.stringify({ status: "ok", gateway: connectionStatus, service: "SBMS WhatsApp Gateway", build: "v2.3-profile-sync", timestamp: new Date().toISOString() }));
             return;
         }
 

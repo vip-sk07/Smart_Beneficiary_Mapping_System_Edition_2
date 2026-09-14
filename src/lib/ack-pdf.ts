@@ -23,7 +23,7 @@ export function generateAckSlipBuffer(data: AckReceiptData): Buffer {
         referenceId,
         schemeTitle,
         applicantName,
-        aadhaarMasked = "•••• •••• 2655",
+        aadhaarMasked = "•••• •••• 8596",
         state = "Tamil Nadu",
         submittedAt = new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }),
         portalName = "e-Districts Autonomous Welfare Gateway"

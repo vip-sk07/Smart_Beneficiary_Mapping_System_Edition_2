@@ -7,28 +7,13 @@ export interface ConversationResponse {
     actionType?: "INITIAL_ALERT" | "SCHEME_MENU" | "SCHEME_DETAIL" | "STATUS_TRACKING" | "VAULT_AUDIT" | "GRIEVANCE" | "CATEGORY_FILTER" | "HELP_MENU" | "AI_CONVERSATION";
 }
 
-let dbHealthy = true;
-let lastDbAttempt = 0;
-
-async function queryWithTimeout<T>(queryFn: () => Promise<T>, timeoutMs = 600): Promise<T | null> {
-    const now = Date.now();
-    if (!dbHealthy && now - lastDbAttempt < 30000) {
-        return null;
-    }
-    lastDbAttempt = now;
-
+async function queryWithTimeout<T>(queryFn: () => Promise<T>, timeoutMs = 4500): Promise<T | null> {
     try {
         const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), timeoutMs));
         const res = await Promise.race([queryFn(), timeoutPromise]);
-        if (res !== null) {
-            dbHealthy = true;
-            return res;
-        } else {
-            dbHealthy = false;
-            return null;
-        }
-    } catch {
-        dbHealthy = false;
+        return res;
+    } catch (err) {
+        console.warn("[WHATSAPP CONVERSATION] DB Query Notice:", err);
         return null;
     }
 }
@@ -40,7 +25,8 @@ export async function processIncomingWhatsAppMessage(
 ): Promise<ConversationResponse> {
     const rawInput = userMessage.trim();
     const upperInput = rawInput.toUpperCase();
-    const baseUrl = process.env.NEXTAUTH_URL || "https://smart-beneficiary-mapping-system.vercel.app";
+    const rawBaseUrl = process.env.NEXTAUTH_URL || "https://smart-beneficiary-mapping-system.vercel.app";
+    const baseUrl = rawBaseUrl.includes("localhost") ? "https://smart-beneficiary-mapping-system.vercel.app" : rawBaseUrl;
 
     const cleanPhone10 = phone ? phone.replace(/\D/g, "").slice(-10) : "";
 
@@ -91,7 +77,13 @@ export async function processIncomingWhatsAppMessage(
         // If no user found and this is not a new external citizen (e.g. self-chat or general test)
         if (!user && !isExplicitNewCitizen) {
             user = await queryWithTimeout(() => prisma.user.findFirst({
-                where: { applications: { some: {} } },
+                where: {
+                    OR: [
+                        { phone: { contains: "9384102655" } },
+                        { email: "karanraj2006rk@gmail.com" },
+                        { applications: { some: {} } }
+                    ]
+                },
                 include: {
                     documents: true,
                     applications: {
@@ -112,26 +104,31 @@ export async function processIncomingWhatsAppMessage(
 
     if (!user && !isExplicitNewCitizen) {
         user = {
-            id: "citizen-user",
+            id: "cmmkv9juo0000ckvenwjbposn",
             name: "Karan Raj T",
+            phone: "9384102655",
+            email: "karanraj2006rk@gmail.com",
             state: "Tamil Nadu",
             gender: "MALE",
-            dob: new Date("2002-05-15"),
-            income: 120000,
-            occupation: "Student",
+            dob: new Date("2006-07-23"),
+            income: 100000,
+            occupation: "Graduate",
             documents: [
-                { id: "doc-1", name: "Aadhaar_eKYC_Verified.pdf", type: "aadhaar" },
-                { id: "doc-2", name: "Income_Certificate_2026.pdf", type: "income_cert" },
-                { id: "doc-3", name: "Community_Certificate_BC.pdf", type: "caste_cert" }
+                { id: "doc-1", name: "Aadhaar Card (e-KYC)", type: "aadhaar" },
+                { id: "doc-2", name: "Income Certificate (Tahsildar)", type: "income_cert" },
+                { id: "doc-3", name: "Community / Caste / EWS Certificate", type: "caste_cert" },
+                { id: "doc-4", name: "Nativity / Domicile Certificate", type: "domicile" },
+                { id: "doc-5", name: "Ration / Smart Card", type: "ration_card" },
+                { id: "doc-6", name: "Passport Size Photograph", type: "passport_photo" }
             ],
             applications: [
                 {
-                    id: "app-1",
-                    scheme: { title: "National Centre for Communication Security (NCCS) Research Associates Scheme" },
+                    id: "cmu0te8ya000004l78pxfz4h2",
+                    scheme: { title: "National Solar Science Fellowship Programme" },
                     status: "PENDING",
-                    externalApplicationId: "SBMS-ACK-2026-938410",
+                    externalApplicationId: "SBMS-APP-2026-583096",
                     externalPortal: "Autonomous Browser Agent (edistricts.gov.in)",
-                    submittedAt: new Date(),
+                    submittedAt: new Date("2026-09-14"),
                     notes: "Filed via Autonomous Browser Engine. Verified e-KYC on record."
                 }
             ],
@@ -139,7 +136,7 @@ export async function processIncomingWhatsAppMessage(
         };
     }
 
-    const userName = user?.name ? user.name.split(" ")[0] : "Citizen";
+    const userName = user?.name || "Citizen";
     const userDocs = user?.documents || [];
     let userApps = user?.applications || [];
 
@@ -331,6 +328,7 @@ export async function processIncomingWhatsAppMessage(
         }
 
         let statusText = `📋 *YOUR SBMS APPLICATION DASHBOARD (${userApps.length}):*\n━━━━━━━━━━━━━━━━━━━━\n`;
+        statusText += `👤 *Beneficiary:* *${userName}*\n\n`;
 
         userApps.slice(0, 5).forEach((app: any, idx: number) => {
             const statusIcons: Record<string, string> = {
