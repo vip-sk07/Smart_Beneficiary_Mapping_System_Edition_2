@@ -122,7 +122,7 @@ const botSentMessageIds = new Set<string>();
             if (!remoteJid) continue;
 
             // 🛡️ RULE 1: Ignore all WhatsApp Group chats & Status broadcasts completely
-            if (remoteJid.endsWith("@g.us") || remoteJid.includes("-") || remoteJid === "status@broadcast") {
+            if (remoteJid.endsWith("@g.us") || remoteJid === "status@broadcast") {
                 continue;
             }
 
@@ -130,25 +130,32 @@ const botSentMessageIds = new Set<string>();
             const senderDigits = remoteJid.split("@")[0].replace(/\D/g, "");
             const cleanPhone10 = senderDigits.length >= 10 ? senderDigits.slice(-10) : "";
 
-            // Helper to dispatch replies reliably to remoteJid, clean normalized JID, and self-chat
+            // Helper to dispatch replies reliably to standard Phone JIDs (@s.whatsapp.net)
             const dispatchReply = async (replyPayload: string | any) => {
                 const messageObj = typeof replyPayload === "string" ? { text: replyPayload } : replyPayload;
 
                 const targets = new Set<string>();
-                if (remoteJid) targets.add(remoteJid);
-                if (remoteJid.includes("@s.whatsapp.net")) {
+
+                // 1. If remoteJid is already a standard phone JID (@s.whatsapp.net), use it
+                if (remoteJid && remoteJid.endsWith("@s.whatsapp.net")) {
                     targets.add(remoteJid.split(":")[0] + "@s.whatsapp.net");
                 }
+
+                // 2. Add authenticated socket owner JID (for self-chat & testing)
                 if (myNumber) {
-                    targets.add(`${myNumber}@s.whatsapp.net`);
-                    if (myNumber.length === 10) targets.add(`91${myNumber}@s.whatsapp.net`);
+                    const cleanMy = myNumber.length === 10 ? `91${myNumber}` : myNumber;
+                    targets.add(`${cleanMy}@s.whatsapp.net`);
                 }
-                if (cleanPhone10 && cleanPhone10.length === 10) {
+
+                // 3. If remote digits are a 10-digit phone number (and not an LID), add 91 prefix
+                if (cleanPhone10 && cleanPhone10.length === 10 && !remoteJid.endsWith("@lid")) {
                     targets.add(`91${cleanPhone10}@s.whatsapp.net`);
                 }
 
                 let sentCount = 0;
                 for (const target of targets) {
+                    // Safety: Never send directly to @lid or @g.us
+                    if (target.endsWith("@lid") || target.endsWith("@g.us")) continue;
                     try {
                         const res = await sock?.sendMessage(target, messageObj as any);
                         if (res?.key?.id) {
