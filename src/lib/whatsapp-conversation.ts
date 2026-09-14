@@ -7,6 +7,32 @@ export interface ConversationResponse {
     actionType?: "INITIAL_ALERT" | "SCHEME_MENU" | "SCHEME_DETAIL" | "STATUS_TRACKING" | "VAULT_AUDIT" | "GRIEVANCE" | "CATEGORY_FILTER" | "HELP_MENU" | "AI_CONVERSATION";
 }
 
+let dbHealthy = true;
+let lastDbAttempt = 0;
+
+async function queryWithTimeout<T>(queryFn: () => Promise<T>, timeoutMs = 600): Promise<T | null> {
+    const now = Date.now();
+    if (!dbHealthy && now - lastDbAttempt < 30000) {
+        return null;
+    }
+    lastDbAttempt = now;
+
+    try {
+        const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), timeoutMs));
+        const res = await Promise.race([queryFn(), timeoutPromise]);
+        if (res !== null) {
+            dbHealthy = true;
+            return res;
+        } else {
+            dbHealthy = false;
+            return null;
+        }
+    } catch {
+        dbHealthy = false;
+        return null;
+    }
+}
+
 export async function processIncomingWhatsAppMessage(
     userMessage: string,
     userId?: string
@@ -19,7 +45,7 @@ export async function processIncomingWhatsAppMessage(
     let user: any = null;
     try {
         if (userId) {
-            user = await prisma.user.findUnique({
+            user = await queryWithTimeout(() => prisma.user.findUnique({
                 where: { id: userId },
                 include: {
                     documents: true,
@@ -32,12 +58,12 @@ export async function processIncomingWhatsAppMessage(
                         take: 5
                     }
                 }
-            });
+            }));
         }
 
         // Prioritize finding user who actually has submitted applications
         if (!user) {
-            user = await prisma.user.findFirst({
+            user = await queryWithTimeout(() => prisma.user.findFirst({
                 where: { applications: { some: {} } },
                 include: {
                     documents: true,
@@ -51,12 +77,12 @@ export async function processIncomingWhatsAppMessage(
                     }
                 },
                 orderBy: { updatedAt: "desc" }
-            });
+            }));
         }
 
         // Then user with uploaded documents
         if (!user) {
-            user = await prisma.user.findFirst({
+            user = await queryWithTimeout(() => prisma.user.findFirst({
                 where: { documents: { some: {} } },
                 include: {
                     documents: true,
@@ -70,12 +96,12 @@ export async function processIncomingWhatsAppMessage(
                     }
                 },
                 orderBy: { updatedAt: "desc" }
-            });
+            }));
         }
 
         // Then most recent user
         if (!user) {
-            user = await prisma.user.findFirst({
+            user = await queryWithTimeout(() => prisma.user.findFirst({
                 include: {
                     documents: true,
                     applications: {
@@ -88,7 +114,7 @@ export async function processIncomingWhatsAppMessage(
                     }
                 },
                 orderBy: { updatedAt: "desc" }
-            });
+            }));
         }
     } catch (dbErr) {
         console.warn("[WHATSAPP CONVERSATION] DB User lookup notice:", dbErr);
@@ -130,11 +156,11 @@ export async function processIncomingWhatsAppMessage(
     // If userApps is still empty, search across any recent applications in DB
     if (!userApps || userApps.length === 0) {
         try {
-            const anyApps = await prisma.application.findMany({
+            const anyApps = await queryWithTimeout(() => prisma.application.findMany({
                 take: 5,
                 include: { scheme: { include: { category: true } } },
                 orderBy: { submittedAt: "desc" }
-            });
+            }));
             if (anyApps && anyApps.length > 0) {
                 userApps = anyApps;
             }
@@ -159,11 +185,14 @@ export async function processIncomingWhatsAppMessage(
     // 2. Fetch all active schemes for smart matching with robust fallback
     let schemes: any[] = [];
     try {
-        schemes = await prisma.scheme.findMany({
+        const dbSchemes = await queryWithTimeout(() => prisma.scheme.findMany({
             where: { isActive: true },
             orderBy: { createdAt: "desc" },
             include: { category: true }
-        });
+        }));
+        if (dbSchemes && dbSchemes.length > 0) {
+            schemes = dbSchemes;
+        }
     } catch (schemeErr) {
         console.warn("[WHATSAPP CONVERSATION] DB Schemes lookup notice:", schemeErr);
     }

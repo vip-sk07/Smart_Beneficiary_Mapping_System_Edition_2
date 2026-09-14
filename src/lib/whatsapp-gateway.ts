@@ -177,25 +177,8 @@ const botSentMessageIds = new Set<string>();
                 return sentCount > 0;
             };
 
-            // Resolve Citizen Profile by Phone or Default active user
+            // Resolve Citizen Profile by Phone if available
             let citizenId: string | undefined = undefined;
-            try {
-                if (cleanPhone10) {
-                    const citizen = await prisma.user.findFirst({
-                        where: { phone: { contains: cleanPhone10 } }
-                    });
-                    if (citizen) citizenId = citizen.id;
-                }
-                if (!citizenId) {
-                    const userWithDocs = await prisma.user.findFirst({
-                        where: { documents: { some: {} } },
-                        orderBy: { updatedAt: "desc" }
-                    });
-                    if (userWithDocs) citizenId = userWithDocs.id;
-                }
-            } catch (err) {
-                console.error("DB query error:", err);
-            }
 
             // Unwrap any nested or ephemeral WhatsApp messages
             const actualMsg =
