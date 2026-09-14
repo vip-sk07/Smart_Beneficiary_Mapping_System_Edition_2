@@ -107,10 +107,12 @@ export async function runAutonomousBrowserAgent(
     const startOverall = Date.now();
 
     try {
-        // 1. Launch Real Headless Chromium
+        // 1. Launch Real Chromium Browser (Visible on Desktop in Dev/Demo mode, Headless in cloud production)
         const step1Start = Date.now();
+        const isHeadless = process.env.HEADLESS === "true" || (process.env.NODE_ENV === "production" && process.env.FORCE_HEADFUL !== "true");
         browser = await chromium.launch({
-            headless: true,
+            headless: isHeadless,
+            slowMo: isHeadless ? 0 : 120, // Slow-motion typing so panel members can see every field being filled
             args: [
                 "--no-sandbox",
                 "--disable-setuid-sandbox",
